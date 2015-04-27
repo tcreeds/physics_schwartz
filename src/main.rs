@@ -21,9 +21,9 @@ fn main() {
                 .build_glium().unwrap();
     
         let vertex_buffer = glium::VertexBuffer::new(&display, vec![
-            Vertex { position: [-0.5, -0.5], color: [0.0, 1.0, 0.0] },
-            Vertex { position: [ 0.0,  0.5], color: [0.0, 0.0, 1.0] },
-            Vertex { position: [ 0.5, -0.5], color: [1.0, 0.0, 0.0] },
+            Vertex { position: [-0.5, -0.5, 0.0] },
+            Vertex { position: [ 0.0,  0.5, 0.0] },
+            Vertex { position: [ 0.5, -0.5, 0.0] },
         ]);
         let indices = index::NoIndices(index::PrimitiveType::TrianglesList);
         
@@ -33,23 +33,18 @@ fn main() {
 
                 uniform mat4 matrix;
 
-                attribute vec2 position;
-                attribute vec3 color;
-
-                varying vec3 v_color;
+                attribute vec3 position;
 
                 void main() {
-                    gl_Position = vec4(position, 0.0, 1.0) * matrix;
-                    v_color = color;
+                    gl_Position = vec4(position, 1.0) * matrix;
                 }
                 ",
 
                 // fragment shader
                 "   #version 110
-                varying vec3 v_color;
 
                 void main() {
-                    gl_FragColor = vec4(v_color, 1.0);
+                    gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
                 }
                 ",
 
