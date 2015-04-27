@@ -1,15 +1,14 @@
-
 extern crate glutin;
 #[macro_use]
 extern crate glium;
 
+
 #[derive(Clone, Copy)]
 struct Vertex {
-        position: [f32; 2],
-        color: [f32; 3],
+    position: [f32; 3],
 }
 
-implement_vertex!(Vertex, position, color);
+implement_vertex!(Vertex, position);
 
 fn main() {
         use glium::DisplayBuild;
