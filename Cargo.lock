@@ -4,6 +4,7 @@ version = "0.0.1"
 dependencies = [
  "glium 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nalgebra 0.2.12 (git+https://github.com/sebcrozet/nalgebra)",
 ]
 
 [[package]]
@@ -189,6 +190,16 @@ version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "nalgebra"
+version = "0.2.12"
+source = "git+https://github.com/sebcrozet/nalgebra#350c8fb927fdd59c5c5837035e26571949647b51"
+dependencies = [
+ "num 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
