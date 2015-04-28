@@ -2,9 +2,9 @@ extern crate glutin;
 #[macro_use]
 extern crate glium;
 
-extern crate nalgebra;
+extern crate nalgebra as na;
 
-use nalgebra::{Vec3, ScalarMul, Persp3, Mat4};
+use na::{Vec3, ScalarMul, Persp3, Mat4, ToHomogeneous};
 
 
 #[derive(Clone, Copy)]
@@ -18,8 +18,6 @@ struct RectPrism {
     extents: Vec3<f32>,
     axes: Vec3<Vec3<f32>>,
 }
-
-
 
 impl RectPrism {
     fn get_points(&self) -> Vec<Vec3<f32>> {
@@ -49,6 +47,10 @@ impl RectPrism {
             Vertex { position: pt.as_array().clone()}
         }).collect()
     }
+
+    fn into_buffer<F>(&self, display: &F) -> glium::VertexBuffer<Vertex> where F: glium::backend::Facade {
+        glium::VertexBuffer::new(display, self.into_vertex_list())
+    }
 }
 
 
@@ -60,17 +62,16 @@ fn main() {
     use glium::index;
     use glium::Surface;
 
-    let prism = RectPrism { center: Vec3::new(-0.2f32, 0.0, 0.0),
-        extents: Vec3::new(0.2f32, 0.2, 0.2),
+    let size = 1.0f32;
+
+    let prism = RectPrism { center: Vec3::new(0.0f32, 0.0, 0.0),
+        extents: Vec3::new(size, size, size),
         axes: Vec3::new(
             Vec3::new(1.0f32, 0.0, 0.0),
             Vec3::new(0.0f32, 1.0, 0.0),
             Vec3::new(0.0f32, 0.0, 1.0)
             ),
     };
-
-
-    println!("{:?}", prism.get_points());
 
     let display = glutin::WindowBuilder::new()
             .with_dimensions(640, 480)
@@ -116,38 +117,41 @@ fn main() {
         // optional geometry shader
         None
     ).unwrap();
-    
+    let persp = Persp3::new(640.0 / 480.0f32, 3.1415962535 / 4.0, 0.01, 200.0).to_mat();
+    let translate = na::Iso3::new(Vec3::new(0.0f32, 0.0, 10.0), Vec3::new(3.14159f32 / 4.0,0.0,0.0));
+    let persp = persp * translate.to_homogeneous();
     let mut uniforms = uniform! {
-        vp_matrix: *Persp3::new(480.0f32 / 640.0, 3.14159 / 2.0, 0.01, 200.0).to_mat().as_array() * compute_view_matrix(Vec3(0, -4, 0), Vec3(0, 0, 0)),
+        vp_matrix: *persp.as_array(),// *na::Ortho3::new(640.0f32, 480.0, -10.0, 10.0).to_mat().as_array()
     };
     
     loop {
         let mut target = display.draw();
+        //let mut target = glium::SimpleFrameBuffer::new(&display,  
         target.clear_color(0.0, 0.0, 0.0, 0.0);  // filling the output with the black color
         target.draw(&vertex_buffer, &indices, &program, &uniforms,
             &std::default::Default::default()).unwrap();
-        target.finish();        
+        target.finish();      
     }
 }
 
-enum Simplex {
-    Point(nalgebra::Vec3),
-    Line(nalgebra::Vec3, nalgebra::Vec3),
-    Triangle(nalgebra::Vec3, nalgebra::Vec3, nalgebra::Vec3),
-    Tetrahedron(nalgebra::Vec3, nalgebra::Vec3, nalgebra::Vec3, nalgebra::Vec3)
-}
 
+enum Simplex {
+    Point(Vec3<f32>),
+    Line(Vec3<f32>, Vec3<f32>),
+    Triangle(Vec3<f32>, Vec3<f32>, Vec3<f32>),
+    Tetrahedron(Vec3<f32>, Vec3<f32>, Vec3<f32>, Vec3<f32>),
+}
 impl Simplex {
-    fn add_point(&self, pt: nalgebra::Vec3) -> Simplex {
+    fn add_point(self, pt: Vec3<f32>) -> Simplex {
         match self {
-            Point(v1) => Line(v1, pt),
-            Line(v1, v2) => Triangle(v1, v2, pt),
-            Triangle(v1, v2, v3) => Tetrahedron(v1, v2, v3, pt),
+            Simplex::Point(v1) => Simplex::Line(v1, pt),
+            Simplex::Line(v1, v2) => Simplex::Triangle(v1, v2, pt),
+            Simplex::Triangle(v1, v2, v3) => Simplex::Tetrahedron(v1, v2, v3, pt),
             _ => panic!("Can't add a point to this!"),
         }
     }
 }
-
+/*
 fn test_intersection(shape_a: Shape, shape_b: Shape) -> Option<Simplex, ()> {
     //pick random vertex
     let firstPoint = shape_a.vertices[0] - shape_b.vertices[0];
@@ -176,7 +180,7 @@ fn test_intersection(shape_a: Shape, shape_b: Shape) -> Option<Simplex, ()> {
     } 
 }
 
-fn do_simplex(simplex: Simplex, direction: nalgebra::Vec3) -> Result<Simplex, (Simplex, nalgebra::Vec3)> {
+fn do_simplex(simplex: Simplex, direction: Vec3) -> Result<Simplex, (Simplex, Vec3)> {
     match simplex {
         Line(b, a) => {
             if (b - a).dot(direction) > 0 {
@@ -232,13 +236,13 @@ fn do_simplex(simplex: Simplex, direction: nalgebra::Vec3) -> Result<Simplex, (S
     }
 }
 
-fn support(dir: nalgebra::Vec3, shape_b: Shape, shape_b: Shape) -> nalgebra::Vec3{
+fn support(dir: Vec3, shape_b: Shape, shape_b: Shape) -> Vec3{
     let pa = farthest_along(dir, shape_a);
     let pb = farthest_along(-dir, shape_b);
     pa - pb
 }
 
-fn farthest_along(dir: nalgebra::Vec3, shape: Shape) -> nalgebra::Vec3{
+fn farthest_along(dir: Vec3, shape: Shape) -> Vec3{
     let mut max = 0;
     let mut i_of_max = 0;
 
@@ -264,3 +268,4 @@ fn compute_view_matrix(cam_position: Vec3, look_at: Vec3) -> Mat4 {
         0, 0, 0, 1,
     )
 }
+*/
