@@ -90,49 +90,43 @@ fn main() {
         2, 4, 6,
         1, 3, 5,
         3, 5, 7,
-        ]);//index::NoIndices(index::PrimitiveType::TrianglesList);
+    ]);//index::NoIndices(index::PrimitiveType::TrianglesList);
     
     let program = glium::Program::from_source(&display,
-            // vertex shader
-            "   #version 110
+        // vertex shader
+        "   #version 110
 
-            uniform mat4 matrix;
+        uniform mat4 vp_matrix;
 
-            attribute vec3 position;
+        attribute vec3 position;
 
-            void main() {
-                gl_Position =  matrix * vec4(position, 1.0);
-            }
-            ",
+        void main() {
+            gl_Position =  vp_matrix * vec4(position, 1.0);
+        }
+        ",
 
-            // fragment shader
-            "   #version 110
+        // fragment shader
+        "   #version 110
 
-            void main() {
-                gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
-            }
-            ",
+        void main() {
+            gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+        }
+        ",
 
-            // optional geometry shader
-            None
+        // optional geometry shader
+        None
     ).unwrap();
     
-    let uniforms = uniform! {
-            matrix: *Persp3::new(480.0f32 / 640.0, 3.14159 / 2.0, 0.01, 200.0).to_mat().as_array()
-            /*[
-                    [ 1.0, 0.0, 0.0, 0.0 ],
-                    [ 0.0, 1.0, 0.0, 0.0 ],
-                    [ 0.0, 0.0, 1.0, 0.0 ],
-                    [ 0.0, 0.0, 0.0, 1.0 ]
-            ]*/
+    let mut uniforms = uniform! {
+        vp_matrix: *Persp3::new(480.0f32 / 640.0, 3.14159 / 2.0, 0.01, 200.0).to_mat().as_array() * compute_view_matrix(Vec3(0, -4, 0), Vec3(0, 0, 0)),
     };
     
     loop {
-            let mut target = display.draw();
-            target.clear_color(0.0, 0.0, 0.0, 0.0);  // filling the output with the black color
-            target.draw(&vertex_buffer, &indices, &program, &uniforms,
-                        &std::default::Default::default()).unwrap();
-            target.finish();        
+        let mut target = display.draw();
+        target.clear_color(0.0, 0.0, 0.0, 0.0);  // filling the output with the black color
+        target.draw(&vertex_buffer, &indices, &program, &uniforms,
+            &std::default::Default::default()).unwrap();
+        target.finish();        
     }
 }
 
@@ -154,7 +148,7 @@ impl Simplex {
     }
 }
 
-fn test_intersection(shape_a: Shape, shape_b: Shape) Option<Simplex, ()> {
+fn test_intersection(shape_a: Shape, shape_b: Shape) -> Option<Simplex, ()> {
     //pick random vertex
     let firstPoint = shape_a.vertices[0] - shape_b.vertices[0];
     let direction = -firstPoint;
@@ -177,7 +171,7 @@ fn test_intersection(shape_a: Shape, shape_b: Shape) Option<Simplex, ()> {
             Err((sim, dir)) => {
                 simplex = sim;
                 direction = dir;
-            };
+            }
         }
     } 
 }
@@ -235,6 +229,8 @@ fn do_simplex(simplex: Simplex, direction: nalgebra::Vec3) -> Result<Simplex, (S
             }
         },
         _ => panic!("Can't check this simplex."),
+    }
+}
 
 fn support(dir: nalgebra::Vec3, shape_b: Shape, shape_b: Shape) -> nalgebra::Vec3{
     let pa = farthest_along(dir, shape_a);
@@ -254,4 +250,17 @@ fn farthest_along(dir: nalgebra::Vec3, shape: Shape) -> nalgebra::Vec3{
         }
     }
     shape.vertices[i_of_max]
+}
+
+fn compute_view_matrix(cam_position: Vec3, look_at: Vec3) -> Mat4 {
+    let z_axis = (look_at - cam_position).normalize();
+    let y_axis = Vec3(0, 1, 0).cross(z_axis).normalize();
+    let x_axis = z_axis.cross(x_axis).normalize();
+
+    Mat4(
+        x_axis.x, x_axis.y, x_axis.z, -x_axis.dot(cam_position),
+        y_axis.x, y_axis.y, y_axis.z, -y_axis.dot(cam_position),
+        z_axis.x, z_axis.y, z_axis.z, -z_axis.dot(cam_position),
+        0, 0, 0, 1,
+    )
 }
