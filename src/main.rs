@@ -238,7 +238,7 @@ fn support(dir: nalgebra::Vec3, shape_b: Shape, shape_b: Shape) -> nalgebra::Vec
     pa - pb
 }
 
-fn farthest_along(dir: nalgebra::Vec3, shape: Shape) -> nalgebra::Vec3{
+fn farthest_along(dir: Vec3, shape: Shape) -> algebra::Vec3{
     let mut max = 0;
     let mut i_of_max = 0;
 
@@ -263,4 +263,28 @@ fn compute_view_matrix(cam_position: Vec3, look_at: Vec3) -> Mat4 {
         z_axis.x, z_axis.y, z_axis.z, -z_axis.dot(cam_position),
         0, 0, 0, 1,
     )
+}
+
+fn resolve_collision(shape_a: Shape, shape_b: Shape, simplex: Simplex) {
+
+    match simplex {
+        Simplex::Tetrahedron(p1, p2, p3, p4) => {
+            let point_of_collision = min_point([p1, p2, p3, p4]);
+            let rAP = point_of_collision - shape_a.position;
+            let rBP = point_of_collision - shape_b.position;
+            //moar calculations
+        },
+        _ => println!("Simplex is not a tetrahedron"),
+    }
+}
+
+fn min_point(arr: &[Vec3; 4]) -> Vec3 {
+    
+    let mut point = arr[0];
+    for i in 1..4 {
+        if arr[i].dot(arr[i]) < point.dot(point) {
+            point = arr[i]
+        }
+    }
+    point
 }
