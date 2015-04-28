@@ -6,3 +6,6 @@ authors = ["tcreeds <tcreeds@gmail.com>"]
 [dependencies]
 glium = "*"
 glutin = "*"
+
+[dependencies.nalgebra]
+git = "https://github.com/sebcrozet/nalgebra"
