@@ -17,6 +17,9 @@ struct RectPrism {
     center: Vec3<f32>,
     extents: Vec3<f32>,
     axes: Vec3<Vec3<f32>>,
+    rotation: Vec3<f32>,
+    velocity: Vec3<f32>,
+    angularVelocity: Vec3<f32>,
 }
 
 impl RectPrism {
@@ -51,6 +54,10 @@ impl RectPrism {
     fn into_buffer<F>(&self, display: &F) -> glium::VertexBuffer<Vertex> where F: glium::backend::Facade {
         glium::VertexBuffer::new(display, self.into_vertex_list())
     }
+
+    fn update(&self, dt: f32) {
+        //self.center = self.center + self.velocity * dt;
+    }
 }
 
 
@@ -64,13 +71,27 @@ fn main() {
 
     let size = 1.0f32;
 
-    let prism = RectPrism { center: Vec3::new(0.0f32, 0.0, 0.0),
+    let mut prism = RectPrism { center: Vec3::new(0.0f32, 2.0, 10.0),
         extents: Vec3::new(size, size, size),
         axes: Vec3::new(
             Vec3::new(1.0f32, 0.0, 0.0),
             Vec3::new(0.0f32, 1.0, 0.0),
             Vec3::new(0.0f32, 0.0, 1.0)
             ),
+        rotation: Vec3::new(0.0f32, 0.0, 0.0),
+        velocity: Vec3::new(0.0f32, 0.0, 0.0),
+        angularVelocity: Vec3::new(0.0f32, 0.0, 0.0),
+    };
+    let mut prism2 = RectPrism { center: Vec3::new(0.0f32, -2.0, 10.0),
+        extents: Vec3::new(size, size, size),
+        axes: Vec3::new(
+            Vec3::new(1.0f32, 0.0, 0.0),
+            Vec3::new(0.0f32, 1.0, 0.0),
+            Vec3::new(0.0f32, 0.0, 1.0)
+            ),
+        rotation: Vec3::new(0.3f32, 0.0, 0.0),
+        velocity: Vec3::new(0.0f32, 0.0, 0.0),
+        angularVelocity: Vec3::new(0.0f32, 0.0, 0.0),
     };
 
     let display = glutin::WindowBuilder::new()
@@ -118,18 +139,32 @@ fn main() {
         None
     ).unwrap();
     let persp = Persp3::new(640.0 / 480.0f32, 3.1415962535 / 4.0, 0.01, 200.0).to_mat();
-    let translate = na::Iso3::new(Vec3::new(0.0f32, 0.0, 10.0), Vec3::new(3.14159f32 / 4.0,0.0,0.0));
-    let persp = persp * translate.to_homogeneous();
-    let mut uniforms = uniform! {
-        vp_matrix: *persp.as_array(),// *na::Ortho3::new(640.0f32, 480.0, -10.0, 10.0).to_mat().as_array()
-    };
+    let translate = na::Iso3::new(prism.center, Vec3::new(3.14159f32 / 4.0,0.0,0.0));
     
     loop {
+
+
+
+        let mat1 = persp * na::Iso3::new(prism.center, prism.rotation).to_homogeneous();
+        let mat2 = persp * na::Iso3::new(prism2.center, prism2.rotation).to_homogeneous();
+
         let mut target = display.draw();
         //let mut target = glium::SimpleFrameBuffer::new(&display,  
         target.clear_color(0.0, 0.0, 0.0, 0.0);  // filling the output with the black color
-        target.draw(&vertex_buffer, &indices, &program, &uniforms,
+
+        let uniforms1 = uniform! {
+            vp_matrix: *mat1.as_array(),// *na::Ortho3::new(640.0f32, 480.0, -10.0, 10.0).to_mat().as_array()
+        };
+        let uniforms2 = uniform! {
+            vp_matrix: *mat2.as_array(),// *na::Ortho3::new(640.0f32, 480.0, -10.0, 10.0).to_mat().as_array()
+        };
+        
+        target.draw(&vertex_buffer, &indices, &program, &uniforms1,
             &std::default::Default::default()).unwrap();
+
+        target.draw(&vertex_buffer, &indices, &program, &uniforms2,
+            &std::default::Default::default()).unwrap();
+
         target.finish();      
     }
 }
