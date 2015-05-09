@@ -13,6 +13,43 @@ struct Vertex {
 }
 
 #[derive(Clone, Copy)]
+struct Sphere {
+    position: Vec3<f32>,
+    rotation: Vec3<f32>,
+    radius: f32,
+    velocity: Vec3<f32>,
+    angularVelocity: Vec3<f32>,
+}
+
+impl Sphere {
+    fn get_points(&self) -> Vec<Vec3<f32>> {
+        let mut points = Vec::<Vec3<f32>>::new();
+        points.push(Vec3::new(-0.5f32,    0.0,    0.85,));
+        points.push(Vec3::new(0.5f32,     0.0,    0.85,));
+        points.push(Vec3::new(-0.5f32,    0.0,    -0.85,));
+        points.push(Vec3::new(0.5f32,     0.0,    -0.85,));
+        points.push(Vec3::new(0.0f32,     0.85,   0.5,));
+        points.push(Vec3::new(0.0f32,     0.85,   -0.5,));
+        points.push(Vec3::new(0.0f32,     -0.85,  0.5,));
+        points.push(Vec3::new(0.0f32,     -0.85,  -0.5,));
+        points.push(Vec3::new(0.85f32,    0.52,   0.0,));
+        points.push(Vec3::new(-0.85f32,   0.52,   0.0,));
+        points.push(Vec3::new(0.85f32,    -0.52,  0.0,));
+        points.push(Vec3::new(-0.85f32,   -0.52,  0.0,));
+        points
+    }
+    fn into_vertex_list(&self) -> Vec<Vertex> {
+        self.get_points().iter().map(|pt| {
+            Vertex { position: pt.as_array().clone()}
+        }).collect()
+    }
+    fn update(&mut self) {
+        self.rotation.x += 0.01f32;
+        self.position = self.position + self.velocity;
+    }
+}
+
+#[derive(Clone, Copy)]
 struct RectPrism {
     center: Vec3<f32>,
     extents: Vec3<f32>,
@@ -71,6 +108,24 @@ fn main() {
 
     let size = 1.0f32;
 
+
+
+    let mut sphere1 = Sphere { 
+        position: Vec3::new(0.0f32, 0.0, 10.0),
+        rotation: Vec3::new(0.6f32, 0.0, 0.0),
+        radius: 1.0f32,
+        velocity: Vec3::new(0.01f32, 0.0, 0.0),
+        angularVelocity: Vec3::new(0.0f32, 0.0, 0.0),
+    };
+
+    let mut sphere2 = Sphere { 
+        position: Vec3::new(0.0f32, 0.0, 10.0),
+        rotation: Vec3::new(0.6f32, 0.0, 0.0),
+        radius: 1.0f32,
+        velocity: Vec3::new(0.01f32, 0.0, 0.0),
+        angularVelocity: Vec3::new(0.0f32, 0.0, 0.0),
+    };
+
     let mut prism = RectPrism { center: Vec3::new(0.0f32, 2.0, 10.0),
         extents: Vec3::new(size, size, size),
         axes: Vec3::new(
@@ -112,7 +167,31 @@ fn main() {
         2, 4, 6,
         1, 3, 5,
         3, 5, 7,
-    ]);//index::NoIndices(index::PrimitiveType::TrianglesList);
+    ]);
+    let sphere_vertex_buffer = glium::VertexBuffer::new(&display, sphere1.into_vertex_list());
+    let sphere_indices = glium::index::TrianglesList(vec![0u32, 1, 2,
+        0,4,1,
+        0,9,4,
+        9,5,4,
+        4,5,8,
+        4,8,1,
+        8,10,1,
+        8,3,10,
+        5,3,8,
+        5,2,3,
+        2,7,3,
+        7,10,3,
+        7,6,10,
+        7,11,6,
+        11,0,6,
+        0,1,6,
+        6,1,10,
+        9,0,11,
+        9,11,2,
+        9,2,5,
+        7,2,11,
+    ]);
+    //index::NoIndices(index::PrimitiveType::TrianglesList);
     
     let program = glium::Program::from_source(&display,
         // vertex shader
@@ -121,17 +200,22 @@ fn main() {
         uniform mat4 vp_matrix;
 
         attribute vec3 position;
+        varying vec4 normal;
 
         void main() {
             gl_Position =  vp_matrix * vec4(position, 1.0);
+            normal = vec4(position, 1.0);
         }
         ",
 
         // fragment shader
         "   #version 110
 
+        varying vec4 normal;
+
         void main() {
-            gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+            float mult = clamp(dot(vec4(0.0, 1.0, 0.0, 1.0), normal), 0.0, 1.0);
+            gl_FragColor = vec4(1.0 * mult, 1.0 * (1.0-mult), 0.0, 1.0);
         }
         ",
 
@@ -143,8 +227,9 @@ fn main() {
     
     loop {
 
+        sphere1.update();
 
-
+        let smat = persp * na::Iso3::new(sphere1.position, sphere1.rotation).to_homogeneous();
         let mat1 = persp * na::Iso3::new(prism.center, prism.rotation).to_homogeneous();
         let mat2 = persp * na::Iso3::new(prism2.center, prism2.rotation).to_homogeneous();
 
@@ -152,13 +237,26 @@ fn main() {
         //let mut target = glium::SimpleFrameBuffer::new(&display,  
         target.clear_color(0.0, 0.0, 0.0, 0.0);  // filling the output with the black color
 
+        let sphere_uniforms = uniform! {
+            vp_matrix: *smat.as_array(),
+        };
+
         let uniforms1 = uniform! {
             vp_matrix: *mat1.as_array(),// *na::Ortho3::new(640.0f32, 480.0, -10.0, 10.0).to_mat().as_array()
         };
         let uniforms2 = uniform! {
             vp_matrix: *mat2.as_array(),// *na::Ortho3::new(640.0f32, 480.0, -10.0, 10.0).to_mat().as_array()
         };
+
+        let params = glium::DrawParameters {
+            depth_test: glium::DepthTest::IfLess,
+            depth_write: true,
+            .. std::default::Default::default()
+        };
         
+        target.draw(&sphere_vertex_buffer, &sphere_indices, &program, &sphere_uniforms,
+            &std::default::Default::default()).unwrap();
+
         target.draw(&vertex_buffer, &indices, &program, &uniforms1,
             &std::default::Default::default()).unwrap();
 
@@ -169,162 +267,22 @@ fn main() {
     }
 }
 
+fn test_collisions(&mut a: Sphere, &mut b: Sphere) {
 
-enum Simplex {
-    Point(Vec3<f32>),
-    Line(Vec3<f32>, Vec3<f32>),
-    Triangle(Vec3<f32>, Vec3<f32>, Vec3<f32>),
-    Tetrahedron(Vec3<f32>, Vec3<f32>, Vec3<f32>, Vec3<f32>),
-}
-impl Simplex {
-    fn add_point(self, pt: Vec3<f32>) -> Simplex {
-        match self {
-            Simplex::Point(v1) => Simplex::Line(v1, pt),
-            Simplex::Line(v1, v2) => Simplex::Triangle(v1, v2, pt),
-            Simplex::Triangle(v1, v2, v3) => Simplex::Tetrahedron(v1, v2, v3, pt),
-            _ => panic!("Can't add a point to this!"),
-        }
+    let dist = (a.position - b.position).norm();
+    if ( dist < a.radius + b.radius){
+        let normal = (a.position - b.position).normalize();
+        let point_of_contact  = (a.position - b.position) / 2.0f32;
+        let a_along_normal = point_of_contact - a.position;
+        let b_along_normal = point_of_contact - b.position;
+        let vel_AB = a.velocity * na::dot(a.velocity, a_along_normal) - b.velocity * na::dot(b.velocity, b_along_normal);
+
+        let mut impulse = (-(0.95+1.0) * na::dot(vel_AB, normal));
+
+        //let a_perp_normal = na::cross(a_along_normal, )
     }
-}
-/*
-fn test_intersection(shape_a: Shape, shape_b: Shape) -> Option<Simplex, ()> {
-    //pick random vertex
-    let firstPoint = shape_a.vertices[0] - shape_b.vertices[0];
-    let direction = -firstPoint;
-     //create array of vertices
-    let mut simplex = Simplex::Point(firstPoint);
-   
-    loop{
-        //compute furthest point in direction with support function
-        let vert = support(direction, shape_a, shape_b);
-        //check if vert is closest point to origin
-        if (vert::dot(direction) < 0){
-            //already closest point, no intersection
-            //return none?
-            None
-        }
-        simplex = simplex.add_point(vert);
-        
-        match do_simplex(simplex, direction) {
-            Ok(ret) => return simplex,
-            Err((sim, dir)) => {
-                simplex = sim;
-                direction = dir;
-            }
-        }
-    } 
+
 }
 
-fn do_simplex(simplex: Simplex, direction: Vec3) -> Result<Simplex, (Simplex, Vec3)> {
-    match simplex {
-        Line(b, a) => {
-            if (b - a).dot(direction) > 0 {
-                (simplex, (b - a).cross(origin - a).cross(b - a))
-            } else {
-                (Simplex::Point(a), -a)
-            }
-        },
-        Triangle(c, b, a) => {
-            let ab = (b - a);
-            let ac = (c - a);
-            let abc = ab.cross(ac);
-            if abc.cross(ac).dot(direction) > 0 {
-                if ac.dot(direction) > 0 {
-                    (Simplex::Line(a, c), ac.cross(-a).cross(ac))
-                } else {
-                    if ba.dot(direction) > 0 {
-                        (Simplex::Line(a, b), ab.cross(-a).cross(ab))
-                    } else {
-                        (Simplex::Point(a), -a)
-                    }
-                }
-            } else {
-                if ab.cross(abc).dot(direction) > 0 {
-                    if ab.dot(direction) > 0 {
-                        (Simplex::Line(a, b), ab.cross(-a).cross(ab))
-                    } else {
-                        (Simplex::Point(a), -a)
-                    }
-                } else {
-                    if abc.dot(direction) > 0 {
-                        (Simplex::Triangle(a, b, c), abc)
-                    } else {
-                        (Simplex::Triangle(a, c, b), -abc)
-                    }
-                }
-            }
-        },
-        Tetrahedron(d, c, b, a) => {
-            if (d - a).cross(b - a).dot(direction) > 0 { 
-                do_simplex(Simplex::Triangle(a, b, d), (d - a).cross(b - a))
-            } else if (c - b).cross(d - b).dot(direction) > 0 {
-                do_simplex(Simplex::Triangle(b, c, d), (c - b).cross(d - b))
-            } else if (a - c).cross(d - c).dot(direction) > 0 {
-                do_simplex(Simplex::Triangle(c, a, d), (a - c).cross(d - c))
-            } else if (c - a).cross(b - a).dot(direction) > 0 {
-                do_simplex(Simplex::Triangle(a, c, b), (c - a).cross(b - a))
-            } else {
-                simplex
-            }
-        },
-        _ => panic!("Can't check this simplex."),
-    }
-}
 
-fn support(dir: Vec3, shape_b: Shape, shape_b: Shape) -> Vec3{
-    let pa = farthest_along(dir, shape_a);
-    let pb = farthest_along(-dir, shape_b);
-    pa - pb
-}
 
-fn farthest_along(dir: Vec3, shape: Shape) -> Vec3{
-    let mut max = 0;
-    let mut i_of_max = 0;
-
-    for i in 0..shape.vertices.len(){
-        let dot_along_dir = dir::dot(shape.vertices[i]);
-        if (dot_along_dir > max){
-            max = dot_along_dir;
-            i_of_max = i;
-        }
-    }
-    shape.vertices[i_of_max]
-}
-
-fn compute_view_matrix(cam_position: Vec3, look_at: Vec3) -> Mat4 {
-    let z_axis = (look_at - cam_position).normalize();
-    let y_axis = Vec3(0, 1, 0).cross(z_axis).normalize();
-    let x_axis = z_axis.cross(x_axis).normalize();
-
-    Mat4(
-        x_axis.x, x_axis.y, x_axis.z, -x_axis.dot(cam_position),
-        y_axis.x, y_axis.y, y_axis.z, -y_axis.dot(cam_position),
-        z_axis.x, z_axis.y, z_axis.z, -z_axis.dot(cam_position),
-        0, 0, 0, 1,
-    )
-}
-
-fn resolve_collision(shape_a: Shape, shape_b: Shape, simplex: Simplex) {
-
-    match simplex {
-        Simplex::Tetrahedron(p1, p2, p3, p4) => {
-            let point_of_collision = min_point([p1, p2, p3, p4]);
-            let rAP = point_of_collision - shape_a.position;
-            let rBP = point_of_collision - shape_b.position;
-            //moar calculations
-        },
-        _ => println!("Simplex is not a tetrahedron"),
-    }
-}
-
-fn min_point(arr: &[Vec3; 4]) -> Vec3 {
-    
-    let mut point = arr[0];
-    for i in 1..4 {
-        if arr[i].dot(arr[i]) < point.dot(point) {
-            point = arr[i]
-        }
-    }
-    point
-}
-*/
