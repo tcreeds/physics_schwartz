@@ -160,7 +160,7 @@ impl RectPrism {
                     let mult = Vec3::new(x_mult as f32, y_mult as f32, z_mult as f32);
                     let extents = rotated_extents.mul_s(&mult);
                     let offset = extents.x + extents.y + extents.z;
-                    ret.push(offset + self.center);
+                    ret.push(offset);
                 }
             }
         }
@@ -193,27 +193,19 @@ fn main() {
 
     let size = 1.0f32;
 
-    let mut sphere1 = Sphere { 
-        position: Vec3::new(0.0f32, 0.0, 10.0),
-        rotation: Vec3::new(0.6f32, 0.0, 0.0),
-        radius: 1.0f32,
-        velocity: Vec3::new(0.0f32, 0.0, 0.0),
-        angular_velocity: Vec3::new(0.0f32, 0.0, 0.0),
-    };
+    let mut sphere1 = Sphere::new(1.0);
+    sphere1.position = Vec3::new(3.0, 0.0, 10.0);
+    sphere1.angular_velocity = Vec3::new(1.0, 0.0, 0.0);
 
-    let mut sphere2 = Sphere { 
-        position: Vec3::new(0.0f32, 0.0, 10.0),
-        rotation: Vec3::new(0.6f32, 0.0, 0.0),
-        radius: 1.0f32,
-        velocity: Vec3::new(0.0f32, 0.0, 0.0),
-        angular_velocity: Vec3::new(0.0f32, 0.0, 0.0),
-    };
+    let mut sphere2 = Sphere::new(1.0);
+    sphere2.position = Vec3::new(-3.0, 0.0, 10.0);
+    sphere2.angular_velocity = Vec3::new(0.0, 1.0, 0.0);
 
     let mut prism = RectPrism::new(size);
     prism.center = Vec3::new(0.0, 3.0, 10.0);
 
     let mut prism2 = RectPrism::new(size);
-    prism2.center = Vec3::new(0.0, -8.0, 10.0);
+    prism2.center = Vec3::new(0.0, -3.0, 10.0);
 
     let display = glutin::WindowBuilder::new()
             .with_dimensions(1024, 768)
@@ -299,6 +291,7 @@ fn main() {
         sphere1.update();
 
         let smat = persp * na::Iso3::new(sphere1.position, sphere1.rotation).to_homogeneous();
+        let smat2 = persp * na::Iso3::new(sphere2.position, sphere2.rotation).to_homogeneous();
         let mat1 = persp * na::Iso3::new(prism.center, prism.rotation).to_homogeneous();
         let mat2 = persp * na::Iso3::new(prism2.center, prism2.rotation).to_homogeneous();
 
@@ -308,6 +301,10 @@ fn main() {
 
         let sphere_uniforms = uniform! {
             vp_matrix: *smat.as_array(),
+        };
+
+        let sphere_uniforms2 = uniform! {
+            vp_matrix: *smat2.as_array(),
         };
 
         let uniforms1 = uniform! {
@@ -324,6 +321,9 @@ fn main() {
         };
         
         frame_buffer.draw(&sphere_vertex_buffer, &sphere_indices, &program, &sphere_uniforms,
+            &params).unwrap();
+
+        frame_buffer.draw(&sphere_vertex_buffer, &sphere_indices, &program, &sphere_uniforms2,
             &params).unwrap();
 
         frame_buffer.draw(&vertex_buffer, &indices, &program, &uniforms1,
