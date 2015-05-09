@@ -209,28 +209,11 @@ fn main() {
         angular_velocity: Vec3::new(0.0f32, 0.0, 0.0),
     };
 
-    let mut prism = RectPrism::new(size);/*RectPrism { center: Vec3::new(0.0f32, 2.0, 10.0),
-        extents: Vec3::new(size, size, size),
-        axes: Vec3::new(
-            Vec3::new(1.0f32, 0.0, 0.0),
-            Vec3::new(0.0f32, 1.0, 0.0),
-            Vec3::new(0.0f32, 0.0, 1.0)
-            ),
-        rotation: Vec3::new(0.0f32, 0.0, 0.0),
-        velocity: Vec3::new(0.0f32, 0.0, 0.0),
-        angular_velocity: Vec3::new(0.0f32, 0.0, 0.0),
-    };*/
-    let mut prism2 = RectPrism { center: Vec3::new(0.0f32, -2.0, 10.0),
-        extents: Vec3::new(size, size, size),
-        axes: Vec3::new(
-            Vec3::new(1.0f32, 0.0, 0.0),
-            Vec3::new(0.0f32, 1.0, 0.0),
-            Vec3::new(0.0f32, 0.0, 1.0)
-            ),
-        rotation: Vec3::new(0.3f32, 0.0, 0.0),
-        velocity: Vec3::new(0.0f32, 0.0, 0.0),
-        angular_velocity: Vec3::new(0.0f32, 0.0, 0.0),
-    };
+    let mut prism = RectPrism::new(size);
+    prism.center = Vec3::new(0.0, 3.0, 10.0);
+
+    let mut prism2 = RectPrism::new(size);
+    prism2.center = Vec3::new(0.0, -8.0, 10.0);
 
     let display = glutin::WindowBuilder::new()
             .with_dimensions(1024, 768)
@@ -303,7 +286,15 @@ fn main() {
         height: 768,
     };
 
-    loop {
+    'main_loop: loop {
+        for e in display.poll_events()
+        {
+            match e
+            {
+                glutin::Event::Closed => break 'main_loop,
+                _ => ()
+            }
+        }
 
         sphere1.update();
 
@@ -336,10 +327,10 @@ fn main() {
             &params).unwrap();
 
         frame_buffer.draw(&vertex_buffer, &indices, &program, &uniforms1,
-            &std::default::Default::default()).unwrap();
+            &params).unwrap();
 
         frame_buffer.draw(&vertex_buffer, &indices, &program, &uniforms2,
-            &std::default::Default::default()).unwrap();
+            &params).unwrap();
 
         frame_buffer.blit_color(&source_rect, & mut display.draw(), &dest_rect, glium::uniforms::MagnifySamplerFilter::Nearest);
 
