@@ -1,15 +1,6 @@
-extern crate glium;
-
-extern crate glutin;
-
-extern crate std;
-
-extern crate nalgebra as na;
-
-use na::*;
 
 #[derive(Clone, Copy)]
-pub struct Vertex {
+struct Vertex {
     position: [f32; 3],
 }
 
