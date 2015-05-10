@@ -6,9 +6,11 @@ extern crate nalgebra as na;
 
 mod iter;
 mod sphere;
+mod vec_tools;
 
 use iter::Itertools;
 use sphere::*;
+use vec_tools::*;
 
 use na::*;
 
@@ -118,9 +120,10 @@ fn main() {
         let color_update = {
             let mut update_index_list = vec![];
             for ((l_index, &(ref lhs, _, _)), (r_index, &(ref rhs, _, _))) in pair_list.iter().enumerate().combinate_pair() {
-                if hit_test(lhs, rhs) {
-                    update_index_list.push(l_index);
-                    update_index_list.push(r_index);
+                let test_result = hit_test(lhs, rhs);
+                match test_result {
+                    Some(x) => update_index_list.push((l_index, r_index, x)),
+                    None => (),
                 }
             }
 
@@ -128,13 +131,14 @@ fn main() {
         };
 
         for (li, ri, result) in color_update {
+            let x = pair_list.get_pair_mut(li, ri);
 
-            let & mut (ref mut s1, _, ref mut c1) = pair_list.get_mut(li).unwrap();
+/*            let & mut (ref mut s1, _, ref mut c1) = pair_list.get_mut(li).unwrap();
             *c1 = Vec3::new(0.0, 1.0, 0.0);
             let & mut (ref mut s2, _, ref mut c2) = pair_list.get_mut(ri).unwrap();
             *c2 = Vec3::new(0.0, 1.0, 0.0);
             resolve_collision(s1, s2, result);
-            
+*/            
         }
     
 
