@@ -11,35 +11,42 @@ struct Vertex {
     position: [f32; 3],
 }
 
+implement_vertex!(Vertex, position);
+
+
 #[derive(Clone, Copy)]
 struct Sphere {
-    position: Vec3<f32>,
-    rotation: Vec3<f32>,
     radius: f32,
+    position: Vec3<f32>,
     velocity: Vec3<f32>,
+    rotation: Rot3<f32>,
     angular_velocity: Vec3<f32>,
 }
 
 impl Sphere {
     fn new(radius: f32) -> Sphere {
         Sphere {
-            position: na::zero(),
-            rotation: na::zero(),
             radius: radius,
+            position: na::zero(),
             velocity: na::zero(),
+            rotation: Rot3::new(na::zero()),
             angular_velocity: na::zero(),
         }
     }
 
+
+
+    // todo remove self from all methods
+    // set size to 1
     fn get_points(&self, subdivs: u32) -> Vec<Vec3<f32>> {
         let mut points: Vec<Vec3<f32>> = vec![];
         let y_subdivs = subdivs;
         let x_subdivs = subdivs * 2;
 
-        let mut y_angle_iter = (0..y_subdivs)
+        let y_angle_iter = (0..y_subdivs)
             .map(|a| a * (90 / y_subdivs) )
             .map(|a| a as f32 / 180.0f32 * std::f32::consts::PI );
-        let mut next_y_angle_iter =(1..y_subdivs + 1)
+        let next_y_angle_iter =(1..y_subdivs + 1)
             .map(|a| a * (90 / y_subdivs) )
             .map(|a| a as f32 / 180.0f32 * std::f32::consts::PI );
 
@@ -51,10 +58,10 @@ impl Sphere {
             let next_y_dist = next_y_angle.cos() * self.radius;
             let next_xz_dist = next_y_angle.sin() * self.radius;
 
-            let mut xz_angle_iter = (0..x_subdivs)
+            let xz_angle_iter = (0..x_subdivs)
                 .map(|a| a * 180 / x_subdivs )
                 .map(|a| a as f32 / 180.0 * std::f32::consts::PI );
-            let mut next_xz_angle_iter = (1..x_subdivs + 1)
+            let next_xz_angle_iter = (1..x_subdivs + 1)
                 .map(|a| a * 180 / x_subdivs )
                 .map(|a| a as f32 / 180.0 * std::f32::consts::PI );
 
@@ -114,98 +121,26 @@ impl Sphere {
             Vertex { position: pt.as_array().clone()}
         }).collect()
     }
+    fn into_buffer<F>(&self, display: &F, subdivs: u32) -> glium::VertexBuffer<Vertex> where F: glium::backend::Facade {
+        glium::VertexBuffer::new(display, self.into_vertex_list(subdivs))
+    }
+    // until here
+
     fn update(&mut self) {
-        self.rotation.x += 0.01f32;
+        self.rotation = Rot3::new(self.angular_velocity) * self.rotation;
         self.position = self.position + self.velocity;
     }
-}
-
-#[derive(Clone, Copy)]
-struct RectPrism {
-    center: Vec3<f32>,
-    extents: Vec3<f32>,
-    axes: Vec3<Vec3<f32>>,
-    rotation: Vec3<f32>,
-    velocity: Vec3<f32>,
-    angular_velocity: Vec3<f32>,
-}
-
-impl RectPrism {
-    fn new(size: f32) -> RectPrism {
-        RectPrism { 
-            center: na::zero(),
-            extents: Vec3::new(size, size, size),
-            axes: Vec3::new(
-                Vec3::new(1.0, 0.0, 0.0),
-                Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(0.0, 0.0, 1.0)
-                ),
-            rotation: na::zero(),
-            velocity: na::zero(),
-            angular_velocity: na::zero(),
-        }
-    }
-    fn get_points(&self) -> Vec<Vec3<f32>> {
-        let rotated_extents = { 
-            let mut rotated_extents = self.axes;
-            rotated_extents.x = rotated_extents.x.mul_s(&self.extents.x);
-            rotated_extents.y = rotated_extents.y.mul_s(&self.extents.y);
-            rotated_extents.z = rotated_extents.z.mul_s(&self.extents.z);
-            rotated_extents
-        };
-        let mut ret = Vec::<Vec3<f32>>::new();
-        for x_mult in (-1..2).filter(|i| { i % 2 != 0 }) {
-            for y_mult in (-1..2).filter(|i| { i % 2 != 0 }) {
-                for z_mult in(-1..2).filter(|i| { i % 2 != 0 }) {
-                    let mult = Vec3::new(x_mult as f32, y_mult as f32, z_mult as f32);
-                    let extents = rotated_extents.mul_s(&mult);
-                    let offset = extents.x + extents.y + extents.z;
-                    ret.push(offset);
-                }
-            }
-        }
-        ret
-    }
-
-    fn into_vertex_list(&self) -> Vec<Vertex> {
-        self.get_points().iter().map(|pt| {
-            Vertex { position: pt.as_array().clone()}
-        }).collect()
-    }
-
-    fn into_buffer<F>(&self, display: &F) -> glium::VertexBuffer<Vertex> where F: glium::backend::Facade {
-        glium::VertexBuffer::new(display, self.into_vertex_list())
-    }
-
-    fn update(&self, dt: f32) {
-        //self.center = self.center + self.velocity * dt;
+    fn get_homogeneous(&self) -> na::Mat4<f32> {
+        na::Iso3::new_with_rotmat(self.position, self.rotation).to_homogeneous()
     }
 }
 
-
-implement_vertex!(Vertex, position);
 
 fn main() {
 
     use glium::DisplayBuild;
     use glium::index;
     use glium::Surface;
-
-    let size = 1.0f32;
-
-    let mut sphere1 = Sphere::new(1.0);
-    sphere1.position = Vec3::new(3.0, 0.0, 10.0);
-    sphere1.angular_velocity = Vec3::new(1.0, 0.0, 0.0);
-
-    let mut sphere2 = Sphere::new(1.0);
-    sphere2.position = Vec3::new(-3.0, 0.0, 10.0);
-    sphere2.angular_velocity = Vec3::new(0.0, 1.0, 0.0);
-
-    let mut prism = RectPrism::new(size);
-    prism.center = Vec3::new(0.0, 3.0, 10.0);
-
-    let mut prism2 = RectPrism::new(size);
-    prism2.center = Vec3::new(0.0, -3.0, 10.0);
 
     let display = glutin::WindowBuilder::new()
             .with_dimensions(1024, 768)
@@ -216,21 +151,22 @@ fn main() {
     let color_buffer = glium::texture::Texture2d::empty(&display, 1024, 768);
     let mut frame_buffer = glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(&display, &color_buffer, &depth_buffer);
 
-    let vertex_buffer = glium::VertexBuffer::new(&display, prism.into_vertex_list());
-    let indices = glium::index::TrianglesList(vec![0u32, 1, 2,
-        1, 2, 3,
-        4, 5, 6,
-        5, 6, 7,
-        0, 1, 4,
-        1, 4, 5,
-        2, 3, 6,
-        3, 6, 7,
-        0, 2, 4,
-        2, 4, 6,
-        1, 3, 5,
-        3, 5, 7,
-    ]);
-    let sphere_vertex_buffer = glium::VertexBuffer::new(&display, sphere1.into_vertex_list(10));
+
+    let mut sphere1 = Sphere::new(1.0);
+    sphere1.position = Vec3::new(3.0, 1.0, 10.0);
+    sphere1.velocity = Vec3::new(-0.02, 0.0, 0.0);
+    sphere1.angular_velocity = Vec3::new(0.01, 0.0, 0.0);
+
+    let mut sphere2 = Sphere::new(1.0);
+    sphere2.position = Vec3::new(-3.0, 0.0, 10.0);
+    sphere2.angular_velocity = Vec3::new(0.0, 0.0, 0.1);
+
+   
+    let mut pair_list: Vec<_> = {
+        let object_list = vec![sphere1, sphere2]; 
+        object_list.iter().map(|s| (s.clone(), s.into_buffer(&display, 10), Vec3::new(1.0, 0.0, 0.0))).collect()
+    };
+
     let sphere_indices = index::NoIndices(index::PrimitiveType::TrianglesList);
     
     let program = glium::Program::from_source(&display,
@@ -250,21 +186,29 @@ fn main() {
 
         // fragment shader
         "   #version 110
+        uniform vec3 color;
 
         varying vec4 normal;
 
         void main() {
             float mult = clamp(dot(vec4(0.0, 1.0, 0.0, 1.0), normal), 0.0, 1.0);
-            gl_FragColor = vec4(1.0 * mult, 1.0 * (1.0-mult), 0.0, 1.0);
+            gl_FragColor = vec4(color, 1.0) * mult;
         }
         ",
 
         // optional geometry shader
         None
     ).unwrap();
-    let persp = Persp3::new(640.0 / 480.0f32, 3.1415962535 / 4.0, 0.01, 200.0).to_mat();
-    let translate = na::Iso3::new(prism.center, Vec3::new(3.14159f32 / 4.0,0.0,0.0));
     
+    let persp = Persp3::new(640.0 / 480.0f32, 3.1415962535 / 4.0, 0.01, 200.0).to_mat();
+
+    let params = glium::DrawParameters {
+        depth_test: glium::DepthTest::IfLess,
+        depth_write: true,
+        .. std::default::Default::default()
+    };
+
+
     let source_rect = glium::Rect {
         left: 0,
         bottom: 0,
@@ -288,60 +232,65 @@ fn main() {
             }
         }
 
-        sphere1.update();
+    
+        for & mut (ref mut s, _, ref mut c) in pair_list.iter_mut() {
+            s.update();
+            *c = Vec3::new(1.0, 0.0, 0.0);
+        }
 
-        let smat = persp * na::Iso3::new(sphere1.position, sphere1.rotation).to_homogeneous();
-        let smat2 = persp * na::Iso3::new(sphere2.position, sphere2.rotation).to_homogeneous();
-        let mat1 = persp * na::Iso3::new(prism.center, prism.rotation).to_homogeneous();
-        let mat2 = persp * na::Iso3::new(prism2.center, prism2.rotation).to_homogeneous();
+        let color_update = {
+            let mut update_index_list = vec![];
+            let mut test_iter = pair_list.iter().enumerate();
+
+            'iter_loop: loop {
+                let (l_index, &(ref lhs, _, _)) = match test_iter.next() {
+                    Some(x) => x,
+                    None => break 'iter_loop,
+                };
+                for (r_index, &(ref rhs, _, _)) in test_iter.clone()
+                {
+                    if hit_test(lhs, rhs) {
+                        update_index_list.push(l_index);
+                        update_index_list.push(r_index);
+                    }
+                }
+            }
+            update_index_list
+        };
+
+        for i in color_update {
+            let & mut (_, _, ref mut c) = & mut pair_list[i];
+            *c = Vec3::new(0.0, 1.0, 0.0);
+        }
+    
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
         frame_buffer.clear_depth(1.0);
-
-
-        let sphere_uniforms = uniform! {
-            vp_matrix: *smat.as_array(),
-        };
-
-        let sphere_uniforms2 = uniform! {
-            vp_matrix: *smat2.as_array(),
-        };
-
-        let uniforms1 = uniform! {
-            vp_matrix: *mat1.as_array(),
-        };
-        let uniforms2 = uniform! {
-            vp_matrix: *mat2.as_array(),
-        };
-
-        let params = glium::DrawParameters {
-            depth_test: glium::DepthTest::IfLess,
-            depth_write: true,
-            .. std::default::Default::default()
-        };
         
-        frame_buffer.draw(&sphere_vertex_buffer, &sphere_indices, &program, &sphere_uniforms,
-            &params).unwrap();
+        for &(ref s, ref buf, ref color) in pair_list.iter() {
+            let uniforms = uniform! {
+                vp_matrix: *(persp * s.get_homogeneous()).as_array(),
+                color: *color.as_array(),
+            };
 
-        frame_buffer.draw(&sphere_vertex_buffer, &sphere_indices, &program, &sphere_uniforms2,
-            &params).unwrap();
-
-        frame_buffer.draw(&vertex_buffer, &indices, &program, &uniforms1,
-            &params).unwrap();
-
-        frame_buffer.draw(&vertex_buffer, &indices, &program, &uniforms2,
-            &params).unwrap();
-
+            frame_buffer.draw(buf, &sphere_indices, &program, &uniforms, &params).unwrap();
+        }
+    
         frame_buffer.blit_color(&source_rect, & mut display.draw(), &dest_rect, glium::uniforms::MagnifySamplerFilter::Nearest);
 
     }
 }
 
 
-fn test_collisions(a: & mut Sphere, b: & mut Sphere) -> () {
+struct CollisionResult {
+    // info goes here
+}
+
+fn hit_test(a: & Sphere, b: & Sphere) -> bool {
 
     let dist = (a.position - b.position).norm();
-    if dist < a.radius + b.radius {
+    if dist <= a.radius + b.radius {
+        true
         /*let normal = (a.position - b.position).normalize();
         let point_of_contact  = (a.position - b.position) / 2.0f32;
         let a_along_normal = point_of_contact - a.position;
@@ -352,8 +301,9 @@ fn test_collisions(a: & mut Sphere, b: & mut Sphere) -> () {
         */
 
         //let a_perp_normal = na::cross(a_along_normal, )
+    } else {
+        false
     }
-
 }
 
 
