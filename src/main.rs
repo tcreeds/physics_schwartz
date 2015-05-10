@@ -243,15 +243,19 @@ fn main() {
             let mut test_iter = pair_list.iter().enumerate();
 
             'iter_loop: loop {
-                let (l_index, &(ref lhs, _, _)) = match test_iter.next() {
+                let (l_index, & (ref lhs, _, _)) = match test_iter.next() {
                     Some(x) => x,
                     None => break 'iter_loop,
                 };
-                for (r_index, &(ref rhs, _, _)) in test_iter.clone()
+                for (r_index, & (ref rhs, _, _)) in test_iter.clone()
                 {
-                    if hit_test(lhs, rhs) {
-                        update_index_list.push(l_index);
-                        update_index_list.push(r_index);
+                    match hit_test(lhs, rhs){
+                        Some(x) => {
+                            resolve_collision(lhs, rhs, x);
+                            update_index_list.push(l_index);
+                            update_index_list.push(r_index);
+                        },
+                        _ => ()
                     }
                 }
             }
@@ -289,11 +293,15 @@ struct CollisionResult {
     restitution: f32,
 }
 
+//doesn't deal with rotation yet
 fn resolve_collision(a: & Sphere, b: & Sphere, res: CollisionResult) -> () {
+    let impulse = (-(res.restitution + 1.0f32) * na::dot(&res.relative_velocity, &res.normal));
 
+    a.velocity = a.velocity + res.normal * impulse;
+    b.velocity = b.velocity - res.normal * impulse;
 }
 
-fn hit_test(a: & Sphere, b: & Sphere) -> bool {
+fn hit_test(a: & Sphere, b: & Sphere) -> Option<CollisionResult> {
 
     let dist = (a.position - b.position).norm();
     if dist <= a.radius + b.radius {
@@ -308,7 +316,7 @@ fn hit_test(a: & Sphere, b: & Sphere) -> bool {
             relative_velocity: a.velocity * na::dot(&a.velocity, &rel_a) - b.velocity * na::dot(&b.velocity, &rel_b),
             restitution: 0.9f32,
         };
-        true
+        Some(result)
         /*let normal = (a.position - b.position).normalize();
         let point_of_contact  = (a.position - b.position) / 2.0f32;
         let a_along_normal = point_of_contact - a.position;
@@ -320,7 +328,7 @@ fn hit_test(a: & Sphere, b: & Sphere) -> bool {
 
         //let a_perp_normal = na::cross(a_along_normal, )
     } else {
-        false
+        None
     }
 }
 
