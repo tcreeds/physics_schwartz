@@ -283,13 +283,31 @@ fn main() {
 
 
 struct CollisionResult {
-    // info goes here
+    normal: Vec3<f32>,
+    contact_point: Vec3<f32>,
+    relative_velocity: Vec3<f32>,
+    restitution: f32,
+}
+
+fn resolve_collision(a: & Sphere, b: & Sphere, res: CollisionResult) -> () {
+
 }
 
 fn hit_test(a: & Sphere, b: & Sphere) -> bool {
 
     let dist = (a.position - b.position).norm();
     if dist <= a.radius + b.radius {
+        let point_of_contact  = (a.position - b.position) / 2.0f32;
+        let a_along_normal = point_of_contact - a.position;
+        let b_along_normal = point_of_contact - b.position;
+        let rel_a = (a_along_normal - a.position).normalize();
+        let rel_b = (b_along_normal - b.position).normalize();
+        let result = CollisionResult {
+            normal: (a.position - b.position).normalize(),
+            contact_point: point_of_contact,
+            relative_velocity: a.velocity * na::dot(&a.velocity, &rel_a) - b.velocity * na::dot(&b.velocity, &rel_b),
+            restitution: 0.9f32,
+        };
         true
         /*let normal = (a.position - b.position).normalize();
         let point_of_contact  = (a.position - b.position) / 2.0f32;
