@@ -33,12 +33,12 @@ fn main() {
 
     let mut sphere1 = Sphere::new(1.0);
     sphere1.position = Vec3::new(3.0, 0.0, 10.0);
-    sphere1.velocity = Vec3::new(-0.04, 0.0, 0.0);
+    sphere1.velocity = Vec3::new(-0.01, 0.0, 0.0);
     sphere1.angular_velocity = Vec3::new(0.01, 0.0, 0.0);
 
     let mut sphere2 = Sphere::new(1.0);
     sphere2.position = Vec3::new(-3.0, 0.0, 10.0);
-    sphere2.velocity = Vec3::new(0.04, 0.0, 0.0);
+    sphere2.velocity = Vec3::new(0.01, 0.0, 0.0);
     sphere2.angular_velocity = Vec3::new(0.0, 0.0, 0.1);
 
    
@@ -173,14 +173,13 @@ struct CollisionResult {
 
 //doesn't deal with rotation yet
 fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult) -> () {
-<<<<<<< HEAD
     let impulse = -(res.restitution + 1.0f32) * na::dot(&res.relative_velocity, &res.normal);
 
-    lhs.velocity = lhs.velocity + res.normal * impulse * 1000.0f32;
-    rhs.velocity = rhs.velocity - res.normal * impulse * 1000.0f32;
-    println!("{:?}", res.relative_velocity);
-    //lhs.position = lhs.position - res.normal * (lhs.radius / (lhs.position - res.contact_point).norm() - 1.0f32);
-    //rhs.position = rhs.position + res.normal * (rhs.radius / (rhs.position - res.contact_point).norm() - 1.0f32);
+    lhs.velocity = lhs.velocity + res.normal * impulse;
+    rhs.velocity = rhs.velocity - res.normal * impulse;
+    //println!("{:?}", res.relative_velocity);
+    lhs.position = lhs.position - res.normal * (lhs.radius / (lhs.position - res.contact_point).norm() - 1.0f32);
+    rhs.position = rhs.position + res.normal * (rhs.radius / (rhs.position - res.contact_point).norm() - 1.0f32);
 
     //lhs.angular_velocity = rhs.angular_velocity + res.relative_perp_velocity;
     //lhs.angular_velocity = rhs.angular_velocity - res.relative_perp_velocity;
@@ -190,27 +189,30 @@ fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult)
 fn hit_test(a: & Sphere, b: & Sphere) -> Option<CollisionResult> {
 
     let dist = (a.position - b.position).norm();
-    if dist <= a.radius + b.radius {
+    if dist < a.radius + b.radius {
         //if na::dot(&a.velocity, &(b.position - a.position)) > 0.0f32 || na::dot(&b.velocity, &(a.position - b.position)) > 0.0f32 {
         
             let contact_normal = (a.position - b.position).normalize();
             let point_of_contact  = b.position + (a.position - b.position) / 2.0f32;
-            let rel_a = a.velocity * na::dot(&a.velocity, &contact_normal);
+            let rel_a = a.velocity * na::dot(&a.velocity, &(-contact_normal));
             let rel_b = b.velocity * na::dot(&b.velocity, &contact_normal);
             let rel_vel = rel_a - rel_b;
-
-            let result = CollisionResult {
-                normal: contact_normal,
-                contact_point: point_of_contact,
-                relative_velocity: rel_vel,
-                relative_perp_velocity: na::cross(&rel_vel, &contact_normal),
-                restitution: 1.0f32,
-            };
-            Some(result)
-        /*}
-        else {
-            None
-        }*/
+            println!("vel a: {:?}", rel_a);
+            println!("vel b: {:?}", rel_b);
+            if na::dot(&rel_a, &(point_of_contact-a.position)) > 0.0f32 || na::dot(&rel_b, &(point_of_contact-b.position)) > 0.0f32 || true{
+                
+                let result = CollisionResult {
+                    normal: contact_normal,
+                    contact_point: point_of_contact,
+                    relative_velocity: rel_vel,
+                    relative_perp_velocity: na::cross(&rel_vel, &contact_normal),
+                    restitution: 1.0f32,
+                };
+                Some(result)
+            }
+            else {
+                None
+            }
 
         //let angular = ;
         //let rel_angular_velocity_a = na::cross(&lhs.velocity, &(-(contact_normal.clone().normalize())));
