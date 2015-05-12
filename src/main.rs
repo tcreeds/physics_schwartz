@@ -8,6 +8,7 @@ mod iter;
 mod sphere;
 mod vec_tools;
 
+
 use iter::Itertools;
 use sphere::*;
 use vec_tools::*;
@@ -172,6 +173,7 @@ struct CollisionResult {
 
 //doesn't deal with rotation yet
 fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult) -> () {
+<<<<<<< HEAD
     let impulse = -(res.restitution + 1.0f32) * na::dot(&res.relative_velocity, &res.normal);
 
     lhs.velocity = lhs.velocity + res.normal * impulse * 1000.0f32;
@@ -209,9 +211,10 @@ fn hit_test(a: & Sphere, b: & Sphere) -> Option<CollisionResult> {
         else {
             None
         }*/
+
         //let angular = ;
-        //let rel_angular_velocity_a = na::cross(&a.velocity, &(-(contact_normal.clone().normalize())));
-        //let rel_angular_velocity_b = na::cross(&b.velocity, &(contact_normal.clone().normalize()));
+        //let rel_angular_velocity_a = na::cross(&lhs.velocity, &(-(contact_normal.clone().normalize())));
+        //let rel_angular_velocity_b = na::cross(&rhs.velocity, &(contact_normal.clone().normalize()));
 
 
     } else {

@@ -1,15 +1,14 @@
-extern crate glium;
-
 extern crate glutin;
 
-extern crate std;
+extern crate glium;
 
 extern crate nalgebra as na;
 
+use std::f32::consts::PI;
 use na::*;
 
 #[derive(Clone, Copy)]
-pub struct Vertex {
+struct Vertex {
     position: [f32; 3],
 }
 
@@ -45,10 +44,10 @@ impl Sphere {
 
         let y_angle_iter = (0..y_subdivs)
             .map(|a| a * (90 / y_subdivs) )
-            .map(|a| a as f32 / 180.0f32 * std::f32::consts::PI );
+            .map(|a| a as f32 / 180.0f32 * PI );
         let next_y_angle_iter =(1..y_subdivs + 1)
             .map(|a| a * (90 / y_subdivs) )
-            .map(|a| a as f32 / 180.0f32 * std::f32::consts::PI );
+            .map(|a| a as f32 / 180.0f32 * PI );
 
         for (y_angle, next_y_angle) in y_angle_iter.zip(next_y_angle_iter)
         {
@@ -60,10 +59,10 @@ impl Sphere {
 
             let xz_angle_iter = (0..x_subdivs)
                 .map(|a| a * 180 / x_subdivs )
-                .map(|a| a as f32 / 180.0 * std::f32::consts::PI );
+                .map(|a| a as f32 / 180.0 * PI );
             let next_xz_angle_iter = (1..x_subdivs + 1)
                 .map(|a| a * 180 / x_subdivs )
-                .map(|a| a as f32 / 180.0 * std::f32::consts::PI );
+                .map(|a| a as f32 / 180.0 * PI );
 
             for (xz_angle, next_xz_angle) in xz_angle_iter.zip(next_xz_angle_iter)
             {
