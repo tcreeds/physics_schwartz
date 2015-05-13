@@ -31,16 +31,17 @@ fn main() {
     let mut frame_buffer = glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(&display, &color_buffer, &depth_buffer);
 
 
-    let mut sphere1 = Sphere::new(1.0);
+    let mut sphere1 = Sphere::new(1.0, 1.0);
     sphere1.position = Vec3::new(3.0, 0.9, 10.0);
-    sphere1.velocity = Vec3::new(-0.04, 0.0, 0.0);
-    sphere1.angular_velocity = Vec3::new(0.01, 0.0, 0.0);
+    sphere1.velocity = Vec3::new(-0.06, 0.0, 0.0);
+    sphere1.angular_velocity = Vec3::new(0.0, 0.0, -0.5);
+    sphere1.mass = 1.0f32;
 
-    let mut sphere2 = Sphere::new(1.0);
+    let mut sphere2 = Sphere::new(1.0, 1.0);
     sphere2.position = Vec3::new(-3.0, 0.0, 10.0);
     sphere2.velocity = Vec3::new(0.04, 0.0, 0.0);
-    sphere2.angular_velocity = Vec3::new(0.0, 0.0, 0.1);
-
+    sphere2.angular_velocity = Vec3::new(0.0, 0.0, -0.5);
+    sphere2.mass = 1.0f32;
    
     let mut pair_list: Vec<_> = {
         let object_list = vec![sphere1, sphere2]; 
@@ -173,7 +174,24 @@ struct CollisionResult {
 
 //doesn't deal with rotation yet
 fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult) -> () {
-    let impulse = -(res.restitution) * na::dot(&res.relative_velocity, &res.normal);
+
+    let combined_mass = 1.0f32 / lhs.mass + 1.0f32 / rhs.mass;
+
+    let coeff_lhs = 2.0f32 / 5.0 * lhs.mass * lhs.radius * lhs.radius;
+    let inertia_tensor_lhs = na::Mat3::new(coeff_lhs, 0.0, 0.0, 0.0, coeff_lhs, 0.0, 0.0, 0.0, coeff_lhs);
+    let coeff_rhs = 2.0f32 / 5.0 * rhs.mass * rhs.radius * rhs.radius;
+    let inertia_tensor_rhs = na::Mat3::new(coeff_rhs, 0.0, 0.0, 0.0, coeff_rhs, 0.0, 0.0, 0.0, coeff_rhs);
+
+    let inv_tensor_lhs = na::inv(&inertia_tensor_lhs).unwrap();
+    let inv_tensor_rhs = na::inv(&inertia_tensor_rhs).unwrap();
+
+    let radius_lhs = res.contact_point - lhs.position;
+    let radius_rhs = res.contact_point - rhs.position;
+
+    let tensor_product_lhs = inv_tensor_lhs * na::cross(&(na::cross(&radius_lhs, &res.normal)), &radius_lhs);
+    let tensor_product_rhs = inv_tensor_rhs * na::cross(&(na::cross(&radius_rhs, &res.normal)), &radius_rhs);
+
+    let impulse = -(res.restitution) * na::dot(&res.relative_velocity, &res.normal) / (combined_mass + na::dot(&(tensor_product_lhs + tensor_product_rhs), &res.normal));
 
     lhs.velocity = lhs.velocity + res.normal * impulse;
     rhs.velocity = rhs.velocity - res.normal * impulse;
@@ -184,8 +202,14 @@ fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult)
     lhs.position = lhs.position + res.normal * (lhs.radius / (lhs.position - res.contact_point).norm() - 1.0f32);
     rhs.position = rhs.position - res.normal * (rhs.radius / (rhs.position - res.contact_point).norm() - 1.0f32);
 
-    //lhs.angular_velocity = rhs.angular_velocity + res.relative_perp_velocity;
-    //lhs.angular_velocity = rhs.angular_velocity - res.relative_perp_velocity;
+    println!("ang_lhs:     {:?}", lhs.angular_velocity);
+    println!("ang_rhs:     {:?}", rhs.angular_velocity);
+
+    lhs.angular_velocity = lhs.angular_velocity - inv_tensor_lhs * na::cross(&radius_lhs, &(res.normal * impulse));
+    rhs.angular_velocity = rhs.angular_velocity - inv_tensor_rhs * na::cross(&radius_rhs, &(res.normal * impulse));
+
+    println!("new_ang_lhs: {:?}", lhs.angular_velocity);
+    println!("new_ang_rhs: {:?}", rhs.angular_velocity);
 
 }
 

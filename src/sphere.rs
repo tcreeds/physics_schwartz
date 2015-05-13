@@ -17,6 +17,7 @@ implement_vertex!(Vertex, position);
 
 #[derive(Clone, Copy)]
 pub struct Sphere {
+    pub mass: f32,
     pub radius: f32,
     pub position: Vec3<f32>,
     pub velocity: Vec3<f32>,
@@ -25,8 +26,9 @@ pub struct Sphere {
 }
 
 impl Sphere {
-    pub fn new(radius: f32) -> Sphere {
+    pub fn new(radius: f32, mass: f32) -> Sphere {
         Sphere {
+            mass: mass,
             radius: radius,
             position: na::zero(),
             velocity: na::zero(),
