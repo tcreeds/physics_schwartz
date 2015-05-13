@@ -32,8 +32,8 @@ fn main() {
 
 
     let mut sphere1 = Sphere::new(1.0);
-    sphere1.position = Vec3::new(3.0, 0.0, 10.0);
-    sphere1.velocity = Vec3::new(-0.01, 0.0, 0.0);
+    sphere1.position = Vec3::new(3.0, 0.9, 10.0);
+    sphere1.velocity = Vec3::new(-0.04, 0.0, 0.0);
     sphere1.angular_velocity = Vec3::new(0.01, 0.0, 0.0);
 
     let mut sphere2 = Sphere::new(1.0);
@@ -173,13 +173,17 @@ struct CollisionResult {
 
 //doesn't deal with rotation yet
 fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult) -> () {
-    let impulse = -(res.restitution + 1.0f32) * na::dot(&res.relative_velocity, &res.normal);
+    let impulse = -(res.restitution) * na::dot(&res.relative_velocity, &res.normal);
 
     lhs.velocity = lhs.velocity + res.normal * impulse;
     rhs.velocity = rhs.velocity - res.normal * impulse;
-    //println!("{:?}", res.relative_velocity);
-    lhs.position = lhs.position - res.normal * (lhs.radius / (lhs.position - res.contact_point).norm() - 1.0f32);
-    rhs.position = rhs.position + res.normal * (rhs.radius / (rhs.position - res.contact_point).norm() - 1.0f32);
+
+    println!("\nnew_b: {:?}", rhs.velocity);
+    println!("new_a: {:?}", lhs.velocity);
+    println!("\nimp:   {:?}", impulse);
+    println!("rel v: {:?}\n", res.relative_velocity);
+    lhs.position = lhs.position + res.normal * (lhs.radius / (lhs.position - res.contact_point).norm() - 1.0f32);
+    rhs.position = rhs.position - res.normal * (rhs.radius / (rhs.position - res.contact_point).norm() - 1.0f32);
 
     //lhs.angular_velocity = rhs.angular_velocity + res.relative_perp_velocity;
     //lhs.angular_velocity = rhs.angular_velocity - res.relative_perp_velocity;
