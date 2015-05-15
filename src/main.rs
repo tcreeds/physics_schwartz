@@ -32,7 +32,7 @@ fn main() {
 
 
     let mut sphere1 = Sphere::new(1.0);
-    sphere1.position = Vec3::new(3.0, 0.9, 10.0);
+    sphere1.position = Vec3::new(3.0, 1.9, 10.0);
     sphere1.velocity = Vec3::new(-0.02, 0.0, 0.0);
     sphere1.angular_velocity = Vec3::new(0.0, 0.0, 0.0);
 
@@ -167,30 +167,42 @@ struct CollisionResult {
     normal: Vec3<f32>,
     contact_point: Vec3<f32>,
     relative_velocity: Vec3<f32>,
-    //rotation_axis: Vec3<f32>,
+    rotation_axis: Vec3<f32>,
     restitution: f32,
 }
 
 //doesn't deal with rotation yet
 fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult) -> () {
-    let impulse = -(res.restitution) * na::dot(&res.relative_velocity, &res.normal);
- 
-    lhs.velocity = lhs.velocity + res.normal * impulse;
-    rhs.velocity = rhs.velocity - res.normal * impulse;
-    println!("\nnew_b: {:?}", rhs.velocity);
-    println!("new_a: {:?}", lhs.velocity);
-    println!("\nimp:   {:?}", impulse);
-    println!("rel v: {:?}\n", res.relative_velocity);
+    
     lhs.position = lhs.position + res.normal * (lhs.radius / (lhs.position - res.contact_point).norm() - 1.0f32);
     rhs.position = rhs.position - res.normal * (rhs.radius / (rhs.position - res.contact_point).norm() - 1.0f32);
 
-    /*let lhs_inertia_value = 2.0f32/5.0f32 * 1.0f32/*mass*/ * lhs.radius * lhs.radius;
+    let lhs_inertia_value = 2.0f32/5.0f32 * 1.0f32/*mass*/ * lhs.radius * lhs.radius;
     let inertia_tensor_lhs = na::Mat3::new(lhs_inertia_value, 0.0, 0.0, 0.0, lhs_inertia_value, 0.0, 0.0, 0.0, lhs_inertia_value);
     let rhs_inertia_value = 2.0f32/5.0f32 * 1.0f32/*mass*/ * lhs.radius * lhs.radius;
     let inertia_tensor_rhs = na::Mat3::new(rhs_inertia_value, 0.0, 0.0, 0.0, rhs_inertia_value, 0.0, 0.0, 0.0, rhs_inertia_value);
 
-    lhs.angular_velocity = lhs.angular_velocity + na::cross(&res.rotation_axis, &(res.normal * impulse)) * inertia_tensor_lhs;
-    rhs.angular_velocity = rhs.angular_velocity - na::cross(&res.rotation_axis, &(res.normal * impulse)) * inertia_tensor_rhs;*/
+    let impulse = -(res.restitution) * na::dot(&res.relative_velocity, &res.normal) / (1/*mass*/ + );
+ 
+    lhs.velocity = lhs.velocity + res.normal * impulse;
+    rhs.velocity = rhs.velocity - res.normal * impulse;
+    
+    /*println!("\nnew_b: {:?}", rhs.velocity);
+    println!("new_a: {:?}", lhs.velocity);
+    println!("\nimp:   {:?}", impulse);
+    println!("rel v: {:?}\n", res.relative_velocity);
+    */
+    
+
+    println!("\nBangvel-lhs: {:?}", lhs.angular_velocity);
+    println!("Bangvel-rhs: {:?}", rhs.angular_velocity);
+
+    lhs.angular_velocity = lhs.angular_velocity + inertia_tensor_lhs * na::cross(&res.rotation_axis, &(res.normal * impulse));
+    rhs.angular_velocity = rhs.angular_velocity - inertia_tensor_rhs * na::cross(&res.rotation_axis, &(res.normal * impulse));
+
+    println!("\nAangvel-lhs: {:?}", lhs.angular_velocity);
+    println!("Aangvel-rhs: {:?}", rhs.angular_velocity);
+
 
 }
 
@@ -207,6 +219,11 @@ fn hit_test(lhs: & Sphere, rhs: & Sphere) -> Option<CollisionResult> {
             let rel_lhs = if dot_lhs.is_nan(){ lhs.velocity * 0.0f32} else { lhs.velocity * dot_lhs };
             let rel_rhs = if dot_rhs.is_nan(){ rhs.velocity * 0.0f32} else { rhs.velocity * dot_rhs };
             let rel_vel = rel_rhs - rel_lhs;
+            let rot_axis =  if lhs.velocity.norm() != 0.0f32 {
+                    na::cross(&lhs.velocity, &contact_normal).normalize()
+                } else {
+                    na::cross(&rhs.velocity, &contact_normal).normalize()
+                };
 
             println!("norm:  {:?}", contact_normal);
             println!("rel_b: {:?}", rel_rhs);
@@ -217,7 +234,7 @@ fn hit_test(lhs: & Sphere, rhs: & Sphere) -> Option<CollisionResult> {
                 normal: contact_normal,
                 contact_point: point_of_contact,
                 relative_velocity: rel_vel,
-                //rotation_axis: na::cross(&rel_vel, &contact_normal),
+                rotation_axis: rot_axis,
                 restitution: 1.0f32,
             };
             Some(result)
