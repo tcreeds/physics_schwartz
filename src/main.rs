@@ -7,11 +7,13 @@ extern crate nalgebra as na;
 mod iter;
 mod sphere;
 mod vec_tools;
+mod plane;
 
 
 use iter::Itertools;
 use sphere::*;
 use vec_tools::*;
+use plane::*;
 
 use na::*;
 
@@ -32,16 +34,18 @@ fn main() {
 
 
     let mut sphere1 = Sphere::new(1.0, 1.0);
-    sphere1.position = Vec3::new(3.0, 1.4, 10.0);
-    sphere1.velocity = Vec3::new(-0.01, 0.0, 0.0);
+    sphere1.position = Vec3::new(3.0, 1.4, 20.0);
+    sphere1.velocity = Vec3::new(-0.01, -0.01, 0.0);
     sphere1.angular_velocity = Vec3::new(0.0, 0.0, -0.1);
     sphere1.mass = 1.0f32;
 
     let mut sphere2 = Sphere::new(1.0, 1.0);
-    sphere2.position = Vec3::new(-3.0, 0.0, 10.0);
+    sphere2.position = Vec3::new(-3.0, 0.0, 21.0);
     sphere2.velocity = Vec3::new(0.01, 0.0, 0.0);
     sphere2.angular_velocity = Vec3::new(0.0, 0.0, -0.0);
     sphere2.mass = 1.0f32;
+
+    let bottom_plane = Plane::new(Vec3::new(0.0f32, 0.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), 1.0f32);
    
     let mut pair_list: Vec<_> = {
         let object_list = vec![sphere1, sphere2]; 
@@ -128,6 +132,8 @@ fn main() {
                     Some(x) => update_index_list.push((l_index, r_index, x)),
                     None => (),
                 }
+                bottom_plane.check_collision(*lhs);
+                bottom_plane.check_collision(*rhs);
             }
 
             update_index_list
