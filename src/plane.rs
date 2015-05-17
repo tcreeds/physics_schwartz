@@ -23,8 +23,7 @@ impl Plane {
 		}
 	}
 
-	pub fn check_collision(&self, mut sphere: Sphere) {
-		//println!("sphere's velocity: {:?}\n", sphere.velocity);
+	pub fn check_collision(&self, ref mut sphere: Sphere) {
 		let velocity_direction = na::dot(&sphere.velocity, &self.normal);
 		if velocity_direction > 0.0f32 {
 			return;
@@ -48,23 +47,24 @@ impl Plane {
 			//sphere is still on the positive side of the plane
 			if dot_product > 0.0f32 {
 				sphere.position = sphere.position + self.normal * projection.norm() / sphere.radius;
-				self.bounce_sphere(sphere);
+				self.bounce_sphere(*sphere);
 			}
 			//sphere is on the negative side of the plane
 			else{
 				sphere.position = sphere.position - projection + self.normal * sphere.radius;
-				self.bounce_sphere(sphere);
+				self.bounce_sphere(*sphere);
 			}
 		}
 		//check if sphere has just tunneled through plane
 		else if velocity_direction < 0.0f32 && prev_dot_product > 0.0f32 {
 			sphere.position = sphere.position - projection + self.normal * sphere.radius;
-			self.bounce_sphere(sphere);
+			self.bounce_sphere(*sphere);
 		}
 	}
 
-	fn bounce_sphere(&self, mut sphere: Sphere){
+	fn bounce_sphere(&self, ref mut sphere: Sphere){
 		println!("plane collision imminent");
+		println!("sphere's velocity: {:?}\n", sphere.velocity);
 		sphere.velocity = -sphere.velocity * self.restitution; 
 		let tensor_value = 2.0f32 / 5.0f32 * sphere.mass * sphere.radius * sphere.radius;
 		let inertia_tensor = na::Mat3::new(tensor_value, 0.0, 0.0, 0.0, tensor_value, 0.0, 0.0, 0.0, tensor_value);

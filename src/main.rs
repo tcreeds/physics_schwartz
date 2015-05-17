@@ -132,8 +132,7 @@ fn main() {
                     Some(x) => update_index_list.push((l_index, r_index, x)),
                     None => (),
                 }
-                bottom_plane.check_collision(*lhs);
-                bottom_plane.check_collision(*rhs);
+                
             }
 
             update_index_list
@@ -151,6 +150,8 @@ fn main() {
             
         }
     
+        bottom_plane.check_collision(sphere1);
+        bottom_plane.check_collision(sphere2);
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
         frame_buffer.clear_depth(1.0);
