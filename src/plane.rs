@@ -23,7 +23,10 @@ impl Plane {
 		}
 	}
 
-	pub fn check_collision(&self, ref mut sphere: Sphere) {
+	pub fn check_collision(&self, sph: &mut Sphere) {
+
+		let sphere = *sph;
+
 		let velocity_direction = na::dot(&sphere.velocity, &self.normal);
 		if velocity_direction > 0.0f32 {
 			return;
@@ -37,8 +40,8 @@ impl Plane {
 		let projection = self.normal * dot_product;
 
 		if velocity_direction <= 0.0f32 {
-			//println!("plane collision possible  {:?}", dot_product);
-			//println!("sphere's position: {:?}\n", sphere.position);
+			println!("plane collision possible  {:?}", dot_product);
+			println!("sphere's position: {:?}\n", sphere.position);
 		}
 
 		//check if sphere is currently intersecting the line
@@ -47,22 +50,25 @@ impl Plane {
 			//sphere is still on the positive side of the plane
 			if dot_product > 0.0f32 {
 				sphere.position = sphere.position + self.normal * projection.norm() / sphere.radius;
-				self.bounce_sphere(*sphere);
+				self.bounce_sphere(sph)
 			}
 			//sphere is on the negative side of the plane
 			else{
 				sphere.position = sphere.position - projection + self.normal * sphere.radius;
-				self.bounce_sphere(*sphere);
+				self.bounce_sphere(sph)
 			}
 		}
 		//check if sphere has just tunneled through plane
 		else if velocity_direction < 0.0f32 && prev_dot_product > 0.0f32 {
 			sphere.position = sphere.position - projection + self.normal * sphere.radius;
-			self.bounce_sphere(*sphere);
+			self.bounce_sphere(sph)
 		}
 	}
 
-	fn bounce_sphere(&self, ref mut sphere: Sphere){
+	fn bounce_sphere(&self, mut sphere: &mut Sphere){
+
+		//let ref mut sphere = sph;
+
 		println!("plane collision imminent");
 		println!("sphere's velocity: {:?}\n", sphere.velocity);
 		sphere.velocity = -sphere.velocity * self.restitution; 

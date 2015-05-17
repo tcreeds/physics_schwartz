@@ -150,8 +150,8 @@ fn main() {
             
         }
     
-        bottom_plane.check_collision(sphere1);
-        bottom_plane.check_collision(sphere2);
+        bottom_plane.check_collision(&mut sphere1);
+        bottom_plane.check_collision(&mut sphere2);
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
         frame_buffer.clear_depth(1.0);
