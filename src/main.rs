@@ -3,13 +3,14 @@ extern crate glutin;
 extern crate glium;
 
 extern crate nalgebra as na;
+extern crate itertools;
 
-mod iter;
 mod sphere;
 mod vec_tools;
+mod parser;
 
 
-use iter::Itertools;
+use itertools::Itertools;
 use sphere::*;
 use vec_tools::*;
 
@@ -122,7 +123,7 @@ fn main() {
 
         let color_update = {
             let mut update_index_list = vec![];
-            for ((l_index, &(ref lhs, _, _)), (r_index, &(ref rhs, _, _))) in pair_list.iter().enumerate().combinate_pair() {
+            for ((l_index, &(ref lhs, _, _)), (r_index, &(ref rhs, _, _))) in pair_list.iter().enumerate().combinations() {
                 let test_result = hit_test(lhs, rhs);
                 match test_result {
                     Some(x) => update_index_list.push((l_index, r_index, x)),

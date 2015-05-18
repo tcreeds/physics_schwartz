@@ -54,13 +54,3 @@ impl<I> Iterator for CombinatePair<I> where I: Iterator + Clone, I::Item: Clone{
         }
     }
 }
-pub trait Itertools : Iterator {
-    fn combinate_pair(self) -> CombinatePair<Self> where
-        Self: Sized + Clone, Self::Item: Clone
-    {
-        CombinatePair::new(self)
-    }
-
-}
-
-impl<T: ?Sized> Itertools for T where T: Iterator { }

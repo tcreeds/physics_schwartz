@@ -9,3 +9,6 @@ glutin = "*"
 
 [dependencies.nalgebra]
 git = "https://github.com/sebcrozet/nalgebra"
+
+[dependencies.itertools]
+git = "https://github.com/bluss/rust-itertools"
