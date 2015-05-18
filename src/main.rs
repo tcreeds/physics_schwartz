@@ -33,19 +33,20 @@ fn main() {
     let mut frame_buffer = glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(&display, &color_buffer, &depth_buffer);
 
 
-    let mut sphere1 = Sphere::new(1.0, 1.0);
-    sphere1.position = Vec3::new(3.0, 1.4, 20.0);
-    sphere1.velocity = Vec3::new(-0.01, -0.01, 0.0);
-    sphere1.angular_velocity = Vec3::new(0.0, 0.0, -0.1);
+    let mut sphere1 = Sphere::new(1.0f32, 1.0f32);
+    sphere1.position = Vec3::new(3.0f32, 5.4, 20.0);
+    sphere1.velocity = Vec3::new(0.0f32, 0.01, 0.0);
+    sphere1.angular_velocity = Vec3::new(0.0f32, 0.0, -0.1);
     sphere1.mass = 1.0f32;
 
-    let mut sphere2 = Sphere::new(1.0, 1.0);
-    sphere2.position = Vec3::new(-3.0, 0.0, 21.0);
-    sphere2.velocity = Vec3::new(0.01, 0.0, 0.0);
-    sphere2.angular_velocity = Vec3::new(0.0, 0.0, -0.0);
+    let mut sphere2 = Sphere::new(1.0f32, 1.0f32);
+    sphere2.position = Vec3::new(-2.0f32, 10.0, 21.0);
+    sphere2.velocity = Vec3::new(0.0f32, -0.01, 0.0);
+    sphere2.angular_velocity = Vec3::new(0.0f32, 0.0, -0.0);
     sphere2.mass = 1.0f32;
+    println!("sphere 2's position: {:?}\n", sphere2.position);
 
-    let bottom_plane = Plane::new(Vec3::new(0.0f32, 0.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), 1.0f32);
+    let bottom_plane = Plane::new(Vec3::new(0.0f32, -2.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), 1.0f32);
    
     let mut pair_list: Vec<_> = {
         let object_list = vec![sphere1, sphere2]; 
@@ -106,7 +107,7 @@ fn main() {
         width: 1024,
         height: 768,
     };
-
+    println!("sphere 2's position: {:?}\n", sphere2.position);
     'main_loop: loop {
         for e in display.poll_events()
         {
@@ -117,12 +118,10 @@ fn main() {
             }
         }
 
-    
         for & mut (ref mut s, _, ref mut c) in pair_list.iter_mut() {
             s.update();
             *c = Vec3::new(1.0, 0.0, 0.0);
         }
-
 
         let color_update = {
             let mut update_index_list = vec![];
@@ -150,8 +149,16 @@ fn main() {
             
         }
     
-        bottom_plane.check_collision(&mut sphere1);
-        bottom_plane.check_collision(&mut sphere2);
+        if bottom_plane.check_collision(&mut sphere1) {
+            println!("Collision about to happen");
+            println!("sphere 1's position: {:?}\n", sphere1.position);
+            bottom_plane.bounce_sphere(&mut sphere1);
+        }
+        if bottom_plane.check_collision(&mut sphere2) {
+            println!("Collision about to happen");
+            println!("sphere 2's position: {:?}\n", sphere2.position);
+            bottom_plane.bounce_sphere(&mut sphere2);
+        }
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
         frame_buffer.clear_depth(1.0);
