@@ -24,15 +24,16 @@ fn main() {
     use glium::index;
     use glium::Surface;
 
-    let test = "d = x * (y + 2) * sin(3.14159) - sqrt(x * x + y * y)";
+    let test = "d = 1 + 2 * 3 - 4 * (5 + 6)";
     let mut toks = Tokenizer::new(&test[..]);
     let line_test = parse_line(& mut toks);
     let Line::Assign(name, expr) = line_test;
     let mut registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
     registers.insert("x", 0);
     registers.insert("y", 1);
-    let vm_test = vm::VM::compile(expr, &registers); 
-    let data = vec![1.0, 4.0];
+    println!("{:?}", vm::VM::optimize(expr.clone()));
+    let vm_test = vm::VM::compile(vm::VM::optimize(expr), &registers); 
+    let data = vec![1.0, 1.0];
     println!("{}: {:?}", name, vm_test.run(&data));
     println!("{:?}", vm_test);
 

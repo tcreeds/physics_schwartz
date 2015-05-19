@@ -29,12 +29,14 @@ pub enum Token {
 #[derive(Clone)]
 pub struct Tokenizer<'a> {
 	pub chars: std::str::Chars<'a>,	
+	done: bool
 }
 
 impl<'a> Tokenizer<'a> {
 	pub fn new(base: & 'a str) -> Self {
 		Tokenizer {
 			chars: base.chars(),
+			done: false,
 		}
 	}
 }
@@ -43,7 +45,7 @@ impl<'a> Iterator for Tokenizer<'a> {
 	type Item = Token;
 	fn next(&mut self) -> Option<Token> {
 		match self.chars.clone().peekable().peek() {
-			None => Some(Token::EoL),
+			None => if !self.done { self.done = true; Some(Token::EoL) } else { None },
 			Some(c) => {
 				match *c {
 					'0' ... '9' => { 
@@ -69,11 +71,17 @@ pub struct Outputter<I> {
 	pub stuff: I,
 }
 
-impl<I> Iterator for Outputter<I> where I: Iterator, I::Item: std::fmt::Debug {
+impl<I> Outputter<I> {
+	pub fn new(x: I) -> Self {
+		Outputter { stuff: x }
+	}
+}
+
+impl<I> Iterator for Outputter<I> where I: Iterator + Clone, I::Item: std::fmt::Debug {
 	type Item = I::Item;
 	fn next(&mut self) -> Option<Self::Item> {
 		let ret = self.stuff.next();
-		println!("{:?}", ret);
+		println!("{:?}", self.stuff.clone().collect::<Vec<_>>());
 		ret
 	}	
 }
@@ -83,7 +91,7 @@ impl<I> Iterator for Outputter<I> where I: Iterator, I::Item: std::fmt::Debug {
 // expr := value [op exp]
 // expr := 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
 	Number(f64),
 	Variable(String),
@@ -125,7 +133,17 @@ fn parse_value<I>(toks: & mut I) -> Expr where I: Iterator<Item=Token> + Clone {
 		}, 
 		Token::OpenParen => {
 			with!(toks.next() => Token::OpenParen);
-			let collected_within: Vec<_> = toks.by_ref().take_while(|tok| if let Token::CloseParen = *tok { false } else { true }).collect();
+			let mut parens = 1;
+			let collected_within: Vec<_> = toks.by_ref().take_while(|tok| {
+				if let Token::CloseParen = *tok 
+				{ 
+					parens -= 1; 
+				} else if let Token::OpenParen = *tok
+				{ 
+					parens += 1;
+				}
+				parens != 0
+			}).collect();
 			parse_expr(& mut collected_within.iter().cloned())
 		},
 		x => panic!(format!("Attempted to parse value, unexpected token found: {:?}.", x)),
@@ -153,10 +171,10 @@ fn parse_expr<I>(toks: & mut I) -> Expr where I: Iterator<Item=Token> + Clone {
 						match ops.last().clone() {
 							None => ops.push(op),
 							Some(_) => {
-								while precedence(&op) < precedence(ops.last().unwrap_or(&"".to_string())) {
+								while precedence(&op) <= precedence(ops.last().unwrap_or(&"".to_string())) {
 									let top_op = ops.pop().unwrap();
-									let lhs = exprs.pop().unwrap();
 									let rhs = exprs.pop().unwrap();
+									let lhs = exprs.pop().unwrap();
 									exprs.push(Expr::Binary(
 										Box::new(lhs),
 										top_op,
@@ -176,8 +194,8 @@ fn parse_expr<I>(toks: & mut I) -> Expr where I: Iterator<Item=Token> + Clone {
 	'construct: loop {
 		if let Some(op) = ops.pop()
 		{
-			let lhs = exprs.pop().unwrap();
 			let rhs = exprs.pop().unwrap();
+			let lhs = exprs.pop().unwrap();
 			exprs.push(Expr::Binary(
 				Box::new(lhs),
 				op,
@@ -197,6 +215,7 @@ fn parse_func<I>(toks: & mut I) -> Expr where I: Iterator<Item=Token> + Clone {
 		'expr: loop {
 			match *toks.clone().peekable().peek().expect("Unexpected end of stream in args.") {
 				Token::CloseParen => {
+					toks.next();
 					break 'expr;
 				}, 
 				Token::Comma => { toks.next(); continue 'expr },

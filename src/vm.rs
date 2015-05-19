@@ -28,6 +28,31 @@ impl VM {
 			instructions: compile_expr(target, registers),
 		}
 	}
+	pub fn optimize(target: Expr) -> Expr {
+		let mut ret = target.clone();
+		match target {
+			Expr::Number(_) => (),
+			Expr::Variable(_) => (),
+			Expr::Call(_, _) => (),
+			Expr::Binary(ref lhs, ref op, ref rhs) => {	
+				let lhs = VM::optimize((**lhs).clone());
+				let rhs = VM::optimize((**rhs).clone());
+				match (lhs.clone(), rhs.clone()) {
+					(Expr::Number(lhs_num), Expr::Number(rhs_num)) => {
+						ret = match &op[..] {
+							"+" => Expr::Number(lhs_num + rhs_num),
+							"-" => Expr::Number(lhs_num - rhs_num),
+							"*" => Expr::Number(lhs_num * rhs_num),
+							"/" => Expr::Number(lhs_num / rhs_num),
+							_ => Expr::Binary(Box::new(lhs), op.clone(), Box::new(rhs)),
+						};
+					},
+					_ => (),
+				}
+			} 
+		}
+		ret
+	}
 	pub fn run(&self, registers: &Vec<f64>) -> f64 {
 		let mut stack: Vec<f64> = vec![];
 		for op in self.instructions.iter().cloned() {
