@@ -23,7 +23,6 @@ pub enum Token {
 	CloseParen,
 	Comma,
 	EoL,
-	Space,
 }
 
 
@@ -33,7 +32,7 @@ pub struct Tokenizer<'a> {
 }
 
 impl<'a> Tokenizer<'a> {
-	fn new(base: & 'a str) -> Self {
+	pub fn new(base: & 'a str) -> Self {
 		Tokenizer {
 			chars: base.chars(),
 		}
@@ -44,7 +43,7 @@ impl<'a> Iterator for Tokenizer<'a> {
 	type Item = Token;
 	fn next(&mut self) -> Option<Token> {
 		match self.chars.clone().peekable().peek() {
-			None => None,
+			None => Some(Token::EoL),
 			Some(c) => {
 				match *c {
 					'0' ... '9' => { 
@@ -54,7 +53,7 @@ impl<'a> Iterator for Tokenizer<'a> {
 					')' => { self.chars.next(); Some(Token::CloseParen) },
 					',' => { self.chars.next(); Some(Token::Comma) },
 					'=' => { self.chars.next(); Some(Token::Assign) },
-					'a' ... 'z' | 'A' ... 'Z' | '_'	=> Some(Token::Ident(self.chars.take_while_ref(|c| match *c { 'a' ... 'z' | 'A' ... 'Z' | '_' => true, _ => false, }).collect())),
+					'a' ... 'z' | 'A' ... 'Z' | '_' | '.'	=> Some(Token::Ident(self.chars.take_while_ref(|c| match *c { 'a' ... 'z' | 'A' ... 'Z' | '_' | '.' => true, _ => false, }).collect())),
 					'\n' | '\r' => Some(Token::EoL),
 					c if c.is_whitespace() => { self.chars.next(); self.next() },
 					_ => Some(Token::Operator(self.chars.take_while_ref(|c| !c.is_whitespace()).collect())),

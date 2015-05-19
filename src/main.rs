@@ -8,11 +8,13 @@ extern crate itertools;
 mod sphere;
 mod vec_tools;
 mod parser;
+mod vm;
 
 
 use itertools::Itertools;
 use sphere::*;
 use vec_tools::*;
+use parser::*;
 
 use na::*;
 
@@ -21,6 +23,20 @@ fn main() {
     use glium::DisplayBuild;
     use glium::index;
     use glium::Surface;
+
+    let test = "d = x * (y + 2) * sin(3.14159) - sqrt(x * x + y * y)";
+    let mut toks = Tokenizer::new(&test[..]);
+    let line_test = parse_line(& mut toks);
+    let Line::Assign(name, expr) = line_test;
+    let mut registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+    registers.insert("x", 0);
+    registers.insert("y", 1);
+    let vm_test = vm::VM::compile(expr, &registers); 
+    let data = vec![1.0, 4.0];
+    println!("{}: {:?}", name, vm_test.run(&data));
+    println!("{:?}", vm_test);
+
+    panic!(); 
 
     let display = glutin::WindowBuilder::new()
             .with_dimensions(1024, 768)
