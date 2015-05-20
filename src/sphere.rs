@@ -15,7 +15,7 @@ struct Vertex {
 implement_vertex!(Vertex, position);
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub struct Sphere {
     pub mass: f32,
     pub radius: f32,

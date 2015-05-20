@@ -2,21 +2,23 @@ extern crate glutin;
 
 extern crate glium;
 
+extern crate std;
+
 extern crate nalgebra as na;
 
 use na::*;
 use sphere::*;
+use std::collections::HashMap;
 
 struct ConnectionData {
-	connections: [i32, ..14],
-	distance: [f32, ..14],
+	distance: Vec<f32>,
 }
 
 #[derive(Clone)]
 pub struct SoftBody {
 	pub points: Vec<Sphere>,
-	connections: HashMap<&Sphere, Vec<usize>>,
-	distances: HashMap<&Sphere, [f32, ..14]>,
+	connections: HashMap<Sphere, Vec<i32>>,
+	distances: HashMap<Sphere, Vec<f32>>,
 }
 
 impl SoftBody {
@@ -71,16 +73,17 @@ impl SoftBody {
 		points.push(sphere14);
 
 		let mut connections = HashMap::new();
+		let mut distances = HashMap::new();
 		for i in 0..14 {
 			let mut conn = Vec::new();
-			let mut data = [f32, ..14];
+			let mut data = Vec::new();
 			for j in 0..14 {
 				let dist = (points[i].position - points[j].position).norm();
 				if dist <= radius * 2.0f32 {
-					conn.push(j);
-					data[j] = dist;
+					conn.push(j as i32);
+					data.push(dist);
 				} else {
-					data[j] = -1.0f32;
+					data.push(-1.0f32);
 				}
 			}
 			connections.insert(points[i], conn);
@@ -99,12 +102,12 @@ impl SoftBody {
 		let mut closed = vec![];
 		let mut open = vec![self.points[0]];
 
-		while open.len() > 0i32{
-			let mut curr = open.pop();
-			for point in self.connections[curr].iter() {
-				if !closed.contains(&self.points[point]) {
-					self.apply_spring_force(&curr, &self.points[point], self.distances(&curr)[point]);
-					open.push(self.points[point]);
+		while !open.is_empty() {
+			let mut curr = open.pop().unwrap();
+			for point in self.connections.get(&curr).unwrap().iter() {
+				if !closed.contains(self.points[point]) {
+					self.apply_spring_force(&mut curr, &mut self.points[*point], self.distances.get(&curr).unwrap()[*point]);
+					open.push(self.points[*point]);
 				}
 			}
 			closed.push(curr);
@@ -116,8 +119,8 @@ impl SoftBody {
 		let curr_distance = force.norm();
 		force.normalize();
 		let modifier = 1.0f32 * curr_distance/distance;
-		lhs.position += modifier * force;
-		rhs.position -= modifier * force;
+		lhs.position = lhs.position + force * modifier;
+		rhs.position = rhs.position - force * modifier;
 
 	}
 	
