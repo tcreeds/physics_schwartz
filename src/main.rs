@@ -3,18 +3,21 @@ extern crate glutin;
 extern crate glium;
 
 extern crate nalgebra as na;
+extern crate itertools;
 
-mod iter;
 mod sphere;
 mod vec_tools;
 mod plane;
 mod softbody;
+mod parser;
+mod vm;
 
-use iter::Itertools;
+use itertools::Itertools;
 use sphere::*;
 use vec_tools::*;
 use plane::*;
 use softbody::*;
+use parser::*;
 
 use na::*;
 
@@ -23,6 +26,21 @@ fn main() {
     use glium::DisplayBuild;
     use glium::index;
     use glium::Surface;
+
+    /*let test = "d = 1 + 2 * 3 - 4 * (5 + 6)";
+    let mut toks = Tokenizer::new(&test[..]);
+    let line_test = parse_line(& mut toks);
+    let Line::Assign(name, expr) = line_test;
+    let mut registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+    registers.insert("x", 0);
+    registers.insert("y", 1);
+    println!("{:?}", vm::VM::optimize(expr.clone()));
+    let vm_test = vm::VM::compile(vm::VM::optimize(expr), &registers); 
+    let data = vec![1.0, 1.0];
+    println!("{}: {:?}", name, vm_test.run(&data));
+    println!("{:?}", vm_test);*/
+
+    //panic!(); 
 
     let display = glutin::WindowBuilder::new()
             .with_dimensions(1024, 768)
@@ -46,10 +64,15 @@ fn main() {
     sphere2.angular_velocity = Vec3::new(0.0f32, 0.0, -0.0);
     sphere2.mass = 1.0f32;
 
+    let mut softsphere = SoftBody::new(Vec3::new(-5.0f32, 3.0f32, 20.0f32), 1.0f32);
+
     let bottom_plane = Plane::new(Vec3::new(0.0f32, 0.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), 0.95f32);
    
     let mut pair_list: Vec<_> = {
-        let object_list = vec![sphere1, sphere2]; 
+        let mut object_list = vec![sphere1, sphere2]; 
+        for i in 0..14 {
+            object_list.push(softsphere.points[i]);
+        }
         object_list.iter().map(|s| (s.clone(), s.into_buffer(&display, 10), Vec3::new(1.0, 0.0, 0.0))).collect()
     };
 
@@ -122,10 +145,13 @@ fn main() {
             s.update();
             *c = Vec3::new(1.0, 0.0, 0.0);
         }
-
+        //softbody particle update
+        //softsphere.update();
+        
+        println!("Updated everything.");
         let color_update = {
             let mut update_index_list = vec![];
-            for ((l_index, &(ref lhs, _, _)), (r_index, &(ref rhs, _, _))) in pair_list.iter().enumerate().combinate_pair() {
+            for ((l_index, &(ref lhs, _, _)), (r_index, &(ref rhs, _, _))) in pair_list.iter().enumerate().combinations() {
                 let test_result = hit_test(lhs, rhs);
                 match test_result {
                     Some(x) => update_index_list.push((l_index, r_index, x)),
@@ -136,7 +162,7 @@ fn main() {
 
             update_index_list
         };
-
+        println!("Resolving sphere collisions");
         for (li, ri, result) in color_update {
             let (& mut (ref mut lhs, _, ref mut c1), & mut (ref mut rhs, _, ref mut c2)) = pair_list.get_pair_mut(li, ri);
 
@@ -148,8 +174,9 @@ fn main() {
             //resolve_collision(s1, s2, result);
             
         }
-        
-        for & mut (ref mut s, _, ref mut c) in pair_list.iter_mut() {
+        println!("Checking plane collisions");
+        for & mut (ref mut s, ref mut b, ref mut c) in pair_list.iter_mut() {
+            println!("iteration of plane collisions");
             if bottom_plane.check_collision(s) {
                 bottom_plane.bounce_sphere(s);
             }
@@ -160,7 +187,7 @@ fn main() {
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
         frame_buffer.clear_depth(1.0);
-        
+        println!("About to draw");
         for &(ref s, ref buf, ref color) in pair_list.iter() {
             let uniforms = uniform! {
                 vp_matrix: *(persp * s.get_homogeneous()).as_array(),

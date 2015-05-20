@@ -4,6 +4,7 @@ version = "0.0.1"
 dependencies = [
  "glium 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.3.8 (git+https://github.com/bluss/rust-itertools)",
  "nalgebra 0.2.12 (git+https://github.com/sebcrozet/nalgebra)",
 ]
 
@@ -152,6 +153,11 @@ dependencies = [
  "enum_primitive 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "itertools"
+version = "0.3.8"
+source = "git+https://github.com/bluss/rust-itertools#8bcb97ee82f2476c2acfef71e22aec309aaf761f"
 
 [[package]]
 name = "kernel32-sys"
