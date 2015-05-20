@@ -27,7 +27,7 @@ impl Plane {
 
 		//let velocity_normal = sphere.velocity.clone().normalize();
 
-		println!("sphere's position{:?}\n", sphere.position);
+		//println!("sphere's position{:?}\n", sphere.position);
 
 		let velocity_direction = na::dot(&sphere.velocity, &self.normal);
 		if velocity_direction > 0.0f32 {
@@ -38,15 +38,9 @@ impl Plane {
 		let prev_dot_product = na::dot(&(sphere.position - sphere.velocity - self.point), &self.normal);
 		//current dot product
 		let dot_product: f32 = na::dot(&(sphere.position - self.point), &self.normal);
+
 		//vector from plane to center of sphere
 		let projection = self.normal * dot_product;
-
-		if velocity_direction < 0.0f32 {
-			//println!("plane collision possible");
-			//println!("plane's normal   : {:?}", self.normal);
-			//println!("sphere's velocity: {:?}\n", sphere.velocity);
-			
-		}
 
 		let distance: f32 = if projection.norm() < 0.0f32 {
 			projection.norm() * -1.0f32
@@ -59,11 +53,7 @@ impl Plane {
 			
 			//sphere is still on the positive side of the plane
 			if dot_product > 0.0f32 {
-				format!("distance: {}", distance);
-				println!("sphere's position{:?}\n", sphere.position);
-				sphere.position = sphere.position + self.normal * projection.norm() / sphere.radius;
-
-				println!("sphere's position{:?}\n", sphere.position);
+				sphere.position = sphere.position + self.normal * (sphere.radius - distance);
 				return true;
 			} else{
 				sphere.position = sphere.position - projection + self.normal * sphere.radius;
@@ -72,7 +62,7 @@ impl Plane {
 
 		}
 		//check if sphere has just tunneled through plane
-		else if velocity_direction < 0.0f32 && prev_dot_product > 0.0f32 {
+		else if velocity_direction < 0.0f32 && dot_product < 0.0f32 && prev_dot_product > 0.0f32 {
 			sphere.position = sphere.position - projection + self.normal * sphere.radius;
 			return true;
 		}
@@ -81,14 +71,7 @@ impl Plane {
 
 	pub fn bounce_sphere(&self, sphere: &mut Sphere){
 
-		println!("plane collision happening");
-		println!("sphere's velocity: {:?}", sphere.velocity);
-		println!("sphere's position: {:?}", sphere.position);
-		println!("plane's point:     {:?}", self.point);
-		
-		
-		sphere.velocity = -sphere.velocity * self.restitution; 
-		println!("sphere's new velocity: {:?}", sphere.velocity);
+		sphere.velocity = self.reflect(sphere.velocity) * self.restitution; 
 		let tensor_value = 2.0f32 / 5.0f32 * sphere.mass * sphere.radius * sphere.radius;
 		let inertia_tensor = na::Mat3::new(tensor_value, 0.0, 0.0, 0.0, tensor_value, 0.0, 0.0, 0.0, tensor_value);
 		let inv_tensor = na::inv(&inertia_tensor).unwrap();
@@ -101,5 +84,9 @@ impl Plane {
 
 		sphere.angular_velocity = sphere.angular_velocity - na::cross(&perp, &impulse);
 
+	}
+
+	fn reflect(&self, vector: Vec3<f32>) -> Vec3<f32> {
+		vector - self.normal * 2.0f32 * na::dot(&vector, &self.normal) 
 	}
 }

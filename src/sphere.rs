@@ -130,6 +130,7 @@ impl Sphere {
     pub fn update(&mut self) {
         self.rotation = Rot3::new(self.angular_velocity) * self.rotation;
         self.position = self.position + self.velocity;
+        println!("position: {:?}", self.position);
     }
     pub fn get_homogeneous(&self) -> na::Mat4<f32> {
         na::Iso3::new_with_rotmat(self.position, self.rotation).to_homogeneous()
