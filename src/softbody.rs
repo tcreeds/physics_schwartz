@@ -30,7 +30,7 @@ impl SoftBody {
 		let mut points = Vec::new();
 		let mut connections = Vec::new();
 
-		let half_dim = 1i32;
+		let half_dim = 2i32;
 		let dim = 2 * half_dim + 1;
 
 		let bounds = dim * dim * dim;
@@ -40,7 +40,7 @@ impl SoftBody {
 			for x in (-half_dim .. half_dim + 1) {
 				for y in (-half_dim .. half_dim + 1) {
 					let sphere_index = points.len();
-					let mut new_sphere = Sphere::new(0.01, 1.0);
+					let mut new_sphere = Sphere::new(0.3, 1.0);
 					new_sphere.position = position;
 					new_sphere.position.x += x as f32 * radius / half_dim as f32;
 					new_sphere.position.y += y as f32 * radius / half_dim as f32;
@@ -78,13 +78,8 @@ impl SoftBody {
 				}
 			}
 		}
-		for p in connections.iter() {
-			println!("{:?}", p);
-		}
-		//println!("{:?}", connections);
-		//panic!();
-		points[0].velocity.x = -0.01f32;
-		//points[0].velocity.y = -0.01f32;
+		//points[0].velocity.x = -0.2f32;
+		//points[0].velocity.y = -0.2f32;
 		SoftBody {
 			points: points,
 			connections: connections,
@@ -98,6 +93,7 @@ impl SoftBody {
 		}
 		for sphere in self.points.iter_mut() {
 			sphere.update();	
+			sphere.velocity = sphere.velocity * 0.99;
 		}
 	}
 
@@ -115,7 +111,8 @@ fn apply_spring_force(lhs: &mut Sphere, rhs: &mut Sphere, distance: f32){
 	let curr_distance = force.norm();
 	force = force.normalize();
 	let mut modifier = curr_distance - distance;
-	if modifier < -0.001f32 || modifier > 0.001f32 {
+	//println!("{:?}", modifier);
+	{
 		modifier = modifier * 0.1f32;
 		lhs.force = lhs.force + force * modifier;
 		rhs.force = rhs.force - force * modifier;
