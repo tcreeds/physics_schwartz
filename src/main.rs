@@ -52,13 +52,13 @@ fn main() {
     let mut frame_buffer = glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(&display, &color_buffer, &depth_buffer);
 
 
-    let mut sphere1 = Sphere::new(1.0f32, 1.0f32);
+    let mut sphere1 = Sphere::new(2.0f32, 1.0f32);
     sphere1.position = Vec3::new(3.0f32, 5.4, 20.0);
     sphere1.velocity = Vec3::new(0.0f32, 0.005, 0.0);
     sphere1.angular_velocity = Vec3::new(0.0f32, 0.0, 0.1);
     sphere1.mass = 1.0f32;
 
-    let sphere_buf = sphere1.into_buffer(&display, 10);
+    let sphere_buf = Sphere::into_buffer(&display, 10);
 
     let mut sphere2 = Sphere::new(1.0f32, 1.0f32);
     sphere2.position = Vec3::new(-2.0f32, 10.0, 21.0);
@@ -71,8 +71,8 @@ fn main() {
     let bottom_plane = Plane::new(Vec3::new(0.0f32, 0.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), 0.95f32);
    
     let mut pair_list: Vec<_> = {
-        let mut object_list = vec![sphere1, sphere2]; 
-        object_list.iter().map(|s| (s.clone(), s.into_buffer(&display, 10), Vec3::new(1.0, 0.0, 0.0))).collect()
+        let object_list = vec![sphere1, sphere2]; 
+        object_list.iter().map(|s| (s.clone(), Vec3::new(1.0, 0.0, 0.0))).collect()
     };
 
     let sphere_indices = index::NoIndices(index::PrimitiveType::TrianglesList);
@@ -129,7 +129,6 @@ fn main() {
         width: 1024,
         height: 768,
     };
-    
     'main_loop: loop {
         for e in display.poll_events()
         {
@@ -140,17 +139,16 @@ fn main() {
             }
         }
 
-        for & mut (ref mut s, _, ref mut c) in pair_list.iter_mut() {
+        for & mut (ref mut s, ref mut c) in pair_list.iter_mut() {
             s.update();
             *c = Vec3::new(1.0, 0.0, 0.0);
         }
         //softbody particle update
         softsphere.update();
         
-        println!("Updated everything.");
         let color_update = {
             let mut update_index_list = vec![];
-            for ((l_index, &(ref lhs, _, _)), (r_index, &(ref rhs, _, _))) in pair_list.iter().enumerate().combinations() {
+            for ((l_index, &(ref lhs, _)), (r_index, &(ref rhs, _))) in pair_list.iter().enumerate().combinations() {
                 let test_result = hit_test(lhs, rhs);
                 match test_result {
                     Some(x) => update_index_list.push((l_index, r_index, x)),
@@ -161,9 +159,8 @@ fn main() {
 
             update_index_list
         };
-        println!("Resolving sphere collisions");
         for (li, ri, result) in color_update {
-            let (& mut (ref mut lhs, _, ref mut c1), & mut (ref mut rhs, _, ref mut c2)) = pair_list.get_pair_mut(li, ri);
+            let (& mut (ref mut lhs, ref mut c1), & mut (ref mut rhs, ref mut c2)) = pair_list.get_pair_mut(li, ri);
 
             resolve_collision(lhs, rhs, result);
             //let & mut (ref mut s1, _, ref mut c1) = pair_list.get_mut(li).unwrap();
@@ -173,9 +170,7 @@ fn main() {
             //resolve_collision(s1, s2, result);
             
         }
-        println!("Checking plane collisions");
-        for & mut (ref mut s, ref mut b, ref mut c) in pair_list.iter_mut() {
-            println!("iteration of plane collisions");
+        for & mut (ref mut s, _) in pair_list.iter_mut() {
             if bottom_plane.check_collision(s) {
                 bottom_plane.bounce_sphere(s);
             }
@@ -186,14 +181,13 @@ fn main() {
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
         frame_buffer.clear_depth(1.0);
-        println!("About to draw");
-        for &(ref s, ref buf, ref color) in pair_list.iter() {
+        for &(ref s, ref color) in pair_list.iter() {
             let uniforms = uniform! {
                 vp_matrix: *(persp * s.get_homogeneous()).as_array(),
                 color: *color.as_array(),
             };
 
-            frame_buffer.draw(buf, &sphere_indices, &program, &uniforms, &params).unwrap();
+            frame_buffer.draw(&sphere_buf, &sphere_indices, &program, &uniforms, &params).unwrap();
         }
         
         for ref s in softsphere.get_points().iter() {
@@ -243,17 +237,10 @@ fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult)
     let radius_lhs = res.contact_point - lhs.position;
     let radius_rhs = res.contact_point - rhs.position;
 
-    //possibly unnecessary
-    //let tensor_product_lhs = inv_tensor_lhs * na::cross(&(na::cross(&radius_lhs, &res.normal)), &radius_lhs);
-    //let tensor_product_rhs = inv_tensor_rhs * na::cross(&(na::cross(&radius_rhs, &res.normal)), &radius_rhs);
-
     let numerator = -(1.0f32 + res.restitution) * na::dot(&res.relative_velocity, &res.normal);
     let denominator = combined_mass + na::dot(&na::cross(&(inv_tensor_lhs * na::cross(&radius_lhs, &res.normal)), &radius_lhs), &res.normal) + na::dot(&na::cross(&(inv_tensor_rhs * na::cross(&radius_rhs, &res.normal)), &radius_rhs), &res.normal);
     
     let impulse =  res.normal * (numerator / denominator); 
-
-    println!("ang_lhs:     {:?}", lhs.angular_velocity);
-    println!("ang_rhs:     {:?}", rhs.angular_velocity);
 
     let perp_lhs = res.relative_velocity.clone().normalize() * radius_lhs.norm();
     let perp_rhs = res.relative_velocity.clone().normalize() * radius_rhs.norm();
@@ -263,32 +250,6 @@ fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult)
 
     lhs.velocity = lhs.velocity + impulse;
     rhs.velocity = rhs.velocity - impulse;
-
-
-    println!("\nnew_rhs: {:?}", rhs.velocity);
-    println!("new_lhs: {:?}", lhs.velocity);
-    println!("\nimp:   {:?}", impulse);
-    println!("rel v: {:?}\n", res.relative_velocity);   
-
-    //lhs.angular_velocity = lhs.angular_velocity - inv_tensor_lhs * na::cross(&(radius_lhs * lhs.angular_velocity), &(res.relative_perp_velocity * impulse));
-    //rhs.angular_velocity = rhs.angular_velocity - inv_tensor_rhs * na::cross(&(radius_rhs * rhs.angular_velocity), &(res.relative_perp_velocity * impulse));
-
-    //let lhs_ang_vel = lhs.angular_velocity.clone();
-    //let rhs_ang_vel = rhs.angular_velocity.clone();
-
-    
-    //lhs.angular_velocity = lhs.angular_velocity + inv_tensor_lhs * (na::cross(&res.relative_perp_velocity, &radius_rhs) + radius_rhs * rhs_ang_vel * impulse);
-    //rhs.angular_velocity = rhs.angular_velocity - inv_tensor_rhs * (na::cross(&res.relative_perp_velocity, &radius_lhs) + radius_lhs * lhs_ang_vel * impulse);
-
-    println!("new_ang_lhs: {:?}", lhs.angular_velocity);
-    println!("new_ang_rhs: {:?}", rhs.angular_velocity);
-    
-    println!("lhs_radius: {:?}", radius_lhs);
-    println!("rhs_radius: {:?}", radius_rhs);
-
-    println!("impulse: {:?}", res.relative_velocity);
-
-    println!("end collision\n\n\n");
 
     
 
