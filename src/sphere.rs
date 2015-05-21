@@ -8,7 +8,7 @@ use std::f32::consts::PI;
 use na::*;
 
 #[derive(Clone, Copy)]
-struct Vertex {
+pub struct Vertex {
     position: [f32; 3],
 }
 
@@ -41,7 +41,7 @@ impl Sphere {
 
     // todo remove self from all methods
     // set size to 1
-    fn get_points(&self, subdivs: u32) -> Vec<Vec3<f32>> {
+    fn get_points(subdivs: u32) -> Vec<Vec3<f32>> {
         let mut points: Vec<Vec3<f32>> = vec![];
         let y_subdivs = subdivs;
         let x_subdivs = subdivs * 2;
@@ -55,11 +55,11 @@ impl Sphere {
 
         for (y_angle, next_y_angle) in y_angle_iter.zip(next_y_angle_iter)
         {
-            let y_dist = y_angle.cos() * self.radius;
-            let xz_dist = y_angle.sin() * self.radius;
+            let y_dist = y_angle.cos() * 1.0;
+            let xz_dist = y_angle.sin() * 1.0;
 
-            let next_y_dist = next_y_angle.cos() * self.radius;
-            let next_xz_dist = next_y_angle.sin() * self.radius;
+            let next_y_dist = next_y_angle.cos() * 1.0;
+            let next_xz_dist = next_y_angle.sin() * 1.0;
 
             let xz_angle_iter = (0..x_subdivs)
                 .map(|a| a * 180 / x_subdivs )
@@ -119,13 +119,13 @@ impl Sphere {
         }
         points
     }
-    fn into_vertex_list(&self, subdivs: u32) -> Vec<Vertex> {
-        self.get_points(subdivs).iter().map(|pt| {
+    fn into_vertex_list(subdivs: u32) -> Vec<Vertex> {
+        Self::get_points(subdivs).iter().map(|pt| {
             Vertex { position: pt.as_array().clone()}
         }).collect()
     }
-    pub fn into_buffer<F>(&self, display: &F, subdivs: u32) -> glium::VertexBuffer<Vertex> where F: glium::backend::Facade {
-        glium::VertexBuffer::new(display, self.into_vertex_list(subdivs))
+    pub fn into_buffer<F>(display: &F, subdivs: u32) -> glium::VertexBuffer<Vertex> where F: glium::backend::Facade {
+        glium::VertexBuffer::new(display, Self::into_vertex_list(subdivs))
     }
     // until here
 
@@ -138,6 +138,8 @@ impl Sphere {
         self.position = self.position + self.velocity;
     }
     pub fn get_homogeneous(&self) -> na::Mat4<f32> {
-        na::Iso3::new_with_rotmat(self.position, self.rotation).to_homogeneous()
+        let mut scale_mat: Mat4<f32> = na::one::<Mat4<_>>() * self.radius;
+        scale_mat.m44 = 1.0;
+        na::Iso3::new_with_rotmat(self.position, self.rotation).to_homogeneous() * scale_mat
     }
 }

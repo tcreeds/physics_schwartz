@@ -74,6 +74,7 @@ impl SoftBody {
 							starting_distance: dist,
 						});
 					}
+
 				}
 			}
 		}
