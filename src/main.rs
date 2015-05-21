@@ -66,7 +66,7 @@ fn main() {
     sphere2.angular_velocity = Vec3::new(0.0f32, 0.0, -0.0);
     sphere2.mass = 1.0f32;
 
-    let mut softsphere = SoftBody::new(Vec3::new(-5.0f32, 3.0f32, 20.0f32), 1.0f32);
+    let mut softsphere = SoftBody::new(Vec3::new(-5.0f32, 3.0, 20.0), 1.0f32);
 
     let bottom_plane = Plane::new(Vec3::new(0.0f32, 0.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), 0.95f32);
    
@@ -147,7 +147,6 @@ fn main() {
         //softbody particle update
         softsphere.update();
         
-        println!("Updated everything.");
         let color_update = {
             let mut update_index_list = vec![];
             for ((l_index, &(ref lhs, _, _)), (r_index, &(ref rhs, _, _))) in pair_list.iter().enumerate().combinations() {
@@ -156,12 +155,21 @@ fn main() {
                     Some(x) => update_index_list.push((l_index, r_index, x)),
                     None => (),
                 }
-                
             }
 
             update_index_list
         };
-        println!("Resolving sphere collisions");
+
+        for ref mut point in softsphere.get_points_mut().iter_mut(){
+            for & mut (ref mut sph, _, _) in pair_list.iter_mut(){
+                let test_result = hit_test(sph, point);
+                match test_result {
+                    Some(x) => resolve_collision(sph, point, x),
+                    None => (),
+                }
+            }
+        }
+
         for (li, ri, result) in color_update {
             let (& mut (ref mut lhs, _, ref mut c1), & mut (ref mut rhs, _, ref mut c2)) = pair_list.get_pair_mut(li, ri);
 
@@ -173,9 +181,8 @@ fn main() {
             //resolve_collision(s1, s2, result);
             
         }
-        println!("Checking plane collisions");
+
         for & mut (ref mut s, ref mut b, ref mut c) in pair_list.iter_mut() {
-            println!("iteration of plane collisions");
             if bottom_plane.check_collision(s) {
                 bottom_plane.bounce_sphere(s);
             }
@@ -186,7 +193,6 @@ fn main() {
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
         frame_buffer.clear_depth(1.0);
-        println!("About to draw");
         for &(ref s, ref buf, ref color) in pair_list.iter() {
             let uniforms = uniform! {
                 vp_matrix: *(persp * s.get_homogeneous()).as_array(),
@@ -300,32 +306,24 @@ fn hit_test(a: & Sphere, b: & Sphere) -> Option<CollisionResult> {
     if dist <= a.radius + b.radius {
         //if na::dot(&a.velocity, &(b.position - a.position)) > 0.0f32 || na::dot(&b.velocity, &(a.position - b.position)) > 0.0f32 {
         
-            let contact_normal = (a.position - b.position).normalize();
-            let point_of_contact  = b.position + (a.position - b.position) / 2.0f32;
-            let rel_a = a.velocity * na::dot(&a.velocity.clone().normalize(), &contact_normal);
-            let rel_b = b.velocity * na::dot(&b.velocity.clone().normalize(), &(-contact_normal));
-            let rel_vel = rel_b - rel_a;
+        let contact_normal = (a.position - b.position).normalize();
+        let point_of_contact  = b.position + (a.position - b.position) / 2.0f32;
+        let rel_a = a.velocity * na::dot(&a.velocity.clone().normalize(), &contact_normal);
+        let rel_b = b.velocity * na::dot(&b.velocity.clone().normalize(), &(-contact_normal));
+        let rel_vel = rel_b - rel_a;
 
-            println!("norm:  {:?}", contact_normal);
-            println!("vel_rhs: {:?}", b.velocity);
-            println!("vel_lhs: {:?}", a.velocity);
+        println!("norm:  {:?}", contact_normal);
+        println!("vel_rhs: {:?}", b.velocity);
+        println!("vel_lhs: {:?}", a.velocity);
 
-            let result = CollisionResult {
-                normal: contact_normal,
-                contact_point: point_of_contact,
-                relative_velocity: rel_vel,
-                relative_perp_velocity: (b.velocity - rel_b) - (a.velocity - rel_a),
-                restitution: 1.0f32,
-            };
-            Some(result)
-        /*}
-        else {
-            None
-        }*/
-        //let angular = ;
-        //let rel_angular_velocity_a = na::cross(&lhs.velocity, &(-(contact_normal.clone().normalize())));
-        //let rel_angular_velocity_b = na::cross(&rhs.velocity, &(contact_normal.clone().normalize()));
-
+        let result = CollisionResult {
+            normal: contact_normal,
+            contact_point: point_of_contact,
+            relative_velocity: rel_vel,
+            relative_perp_velocity: (b.velocity - rel_b) - (a.velocity - rel_a),
+            restitution: 1.0f32,
+        };
+        Some(result)
 
     } else {
         None

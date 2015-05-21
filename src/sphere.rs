@@ -21,6 +21,7 @@ pub struct Sphere {
     pub radius: f32,
     pub position: Vec3<f32>,
     pub velocity: Vec3<f32>,
+    pub force: Vec3<f32>,
     pub rotation: Rot3<f32>,
     pub angular_velocity: Vec3<f32>,
 }
@@ -32,6 +33,7 @@ impl Sphere {
             radius: radius,
             position: na::zero(),
             velocity: na::zero(),
+            force: na::zero(),
             rotation: Rot3::new(na::zero()),
             angular_velocity: na::zero(),
         }
@@ -129,8 +131,11 @@ impl Sphere {
 
     pub fn update(&mut self) {
         self.rotation = Rot3::new(self.angular_velocity) * self.rotation;
+        self.velocity = self.velocity + self.force / self.mass;
+        self.force.x = 0.0;
+        self.force.y = 0.0;
+        self.force.z = 0.0;
         self.position = self.position + self.velocity;
-        //println!("position: {:?}", self.position);
     }
     pub fn get_homogeneous(&self) -> na::Mat4<f32> {
         na::Iso3::new_with_rotmat(self.position, self.rotation).to_homogeneous()

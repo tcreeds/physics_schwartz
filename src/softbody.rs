@@ -10,7 +10,7 @@ use vec_tools::*;
 
 use na::*;
 use sphere::*;
-
+#[derive(Debug)]
 struct ConnectionData {
 	lhs: usize,
 	rhs: usize,
@@ -30,39 +30,60 @@ impl SoftBody {
 		let mut points = Vec::new();
 		let mut connections = Vec::new();
 
-		let bounds = 21 * 21;
-		let dist = radius / 10.0;
+		let half_dim = 1i32;
+		let dim = 2 * half_dim + 1;
 
-		for x in (-10 .. 11) {
-			for y in (-10 .. 11) {
-				let sphere_index = points.len();
-				let mut new_sphere = Sphere::new(0.01, 0.01);
-				new_sphere.position = position;
-				new_sphere.position.x = x as f32 * radius / 10.0;
-				new_sphere.position.y = y as f32 * radius / 10.0;
-				println!("{:?}", new_sphere);
-				points.push(new_sphere);
+		let bounds = dim * dim * dim;
+		let dist = radius / half_dim as f32;
 
-				let c_index_x = sphere_index + 21;
-				let c_index_y = sphere_index + 1;
+		for z in (-half_dim .. half_dim + 1) {
+			for x in (-half_dim .. half_dim + 1) {
+				for y in (-half_dim .. half_dim + 1) {
+					let sphere_index = points.len();
+					let mut new_sphere = Sphere::new(0.01, 1.0);
+					new_sphere.position = position;
+					new_sphere.position.x += x as f32 * radius / half_dim as f32;
+					new_sphere.position.y += y as f32 * radius / half_dim as f32;
+					new_sphere.position.z += z as f32 * radius / half_dim as f32;
+					points.push(new_sphere);
 
-				if c_index_x < bounds {
-					connections.push(ConnectionData {
-						lhs: sphere_index,
-						rhs: c_index_x,
-						starting_distance: dist,
-					});
-				}
+					let c_index_y = sphere_index as i32 + 1;
+					let c_index_x = dim * dim * (z + half_dim) + dim * (x + half_dim + 1) + (y + half_dim);
+					let c_index_z = dim * dim * (z + 1 + half_dim) + dim * (x + half_dim) + (y + half_dim);
 
-				if c_index_y < bounds {
-					connections.push(ConnectionData {
-						lhs: sphere_index,
-						rhs: c_index_y,
-						starting_distance: dist,
-					});
+					if c_index_x < bounds && (x + half_dim + 1) % dim != 0 {
+						connections.push(ConnectionData {
+							lhs: sphere_index as usize,
+							rhs: c_index_x as usize,
+							starting_distance: dist,
+						});
+					}
+
+					if c_index_y < bounds && (y + half_dim + 1) % dim != 0 {
+						connections.push(ConnectionData {
+							lhs: sphere_index as usize,
+							rhs: c_index_y as usize,
+							starting_distance: dist,
+						});
+					}
+
+					if c_index_z < bounds {
+						connections.push(ConnectionData {
+							lhs: sphere_index as usize,
+							rhs: c_index_z as usize,
+							starting_distance: dist,
+						});
+					}
 				}
 			}
 		}
+		for p in connections.iter() {
+			println!("{:?}", p);
+		}
+		//println!("{:?}", connections);
+		//panic!();
+		points[0].velocity.x = -0.01f32;
+		//points[0].velocity.y = -0.01f32;
 		SoftBody {
 			points: points,
 			connections: connections,
@@ -70,12 +91,10 @@ impl SoftBody {
 	}
 
 	pub fn update(& mut self) {
-
 		for conn in self.connections.iter() {
 			let (lhs, rhs) = self.points.get_pair_mut(conn.lhs, conn.rhs);
-			//apply_spring_force(lhs, rhs, conn.starting_distance);
+			apply_spring_force(lhs, rhs, conn.starting_distance);
 		}
-
 		for sphere in self.points.iter_mut() {
 			sphere.update();	
 		}
@@ -84,14 +103,22 @@ impl SoftBody {
 	pub fn get_points(&self) -> &Vec<Sphere> {
 		&self.points
 	}
+
+	pub fn get_points_mut(& mut self) -> & mut Vec<Sphere> {
+		& mut self.points
+	}
 }
 fn apply_spring_force(lhs: &mut Sphere, rhs: &mut Sphere, distance: f32){
-	let force = rhs.position - lhs.position;
+	
+	let mut force = rhs.position - lhs.position;
 	let curr_distance = force.norm();
-	force.normalize();
-	let modifier = 1.0f32 * curr_distance / distance;
-	lhs.position = lhs.position + force * modifier;
-	rhs.position = rhs.position - force * modifier;
+	force = force.normalize();
+	let mut modifier = curr_distance - distance;
+	if modifier < -0.001f32 || modifier > 0.001f32 {
+		modifier = modifier * 0.1f32;
+		lhs.force = lhs.force + force * modifier;
+		rhs.force = rhs.force - force * modifier;
+	}
 
 }
 	
