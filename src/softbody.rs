@@ -6,124 +6,96 @@ extern crate std;
 
 extern crate nalgebra as na;
 
+use vec_tools::*;
+
 use na::*;
 use sphere::*;
 use std::collections::HashMap;
 
 struct ConnectionData {
-	distance: Vec<f32>,
+	lhs: usize,
+	rhs: usize,
+	starting_distance: f32,
 }
 
-#[derive(Clone)]
+
+
+
 pub struct SoftBody {
-	pub points: Vec<Sphere>,
-	connections: HashMap<Sphere, Vec<i32>>,
-	distances: HashMap<Sphere, Vec<f32>>,
+	points: Vec<Sphere>,
+	connections: Vec<ConnectionData>,
 }
 
 impl SoftBody {
 	pub fn new(position: Vec3<f32>, radius: f32) -> SoftBody {
 		let mut points = Vec::new();
-		points.push(Sphere::new(0.1f32, 0.1f32));
-		let displacement = 2.0f32.sqrt() * radius;
-		
-		let mut sphere1 = Sphere::new(0.1f32, 0.1f32);
-		sphere1.position = Vec3::new(position.x + displacement, position.y + displacement, position.z + displacement);
-		points.push(sphere1);
-		let mut sphere2 = Sphere::new(0.1f32, 0.1f32);
-		sphere2.position = Vec3::new(position.x - displacement, position.y + displacement, position.z + displacement);
-		points.push(sphere2);
-		let mut sphere1 = Sphere::new(0.1f32, 0.1f32);
-		sphere1.position = Vec3::new(position.x + displacement, position.y - displacement, position.z + displacement);
-		points.push(sphere1);
-		let mut sphere4 = Sphere::new(0.1f32, 0.1f32);
-		sphere4.position = Vec3::new(position.x - displacement, position.y - displacement, position.z + displacement);
-		points.push(sphere4);
+		let mut connections = Vec::new();
 
-		let mut sphere5 = Sphere::new(0.1f32, 0.1f32);
-		sphere5.position = Vec3::new(position.x + displacement, position.y + displacement, position.z - displacement);
-		points.push(sphere5);
-		let mut sphere6 = Sphere::new(0.1f32, 0.1f32);
-		sphere6.position = Vec3::new(position.x - displacement, position.y + displacement, position.z - displacement);
-		points.push(sphere6);
-		let mut sphere7 = Sphere::new(0.1f32, 0.1f32);
-		sphere7.position = Vec3::new(position.x + displacement, position.y - displacement, position.z - displacement);
-		points.push(sphere7);
-		let mut sphere8 = Sphere::new(0.1f32, 0.1f32);
-		sphere8.position = Vec3::new(position.x - displacement, position.y - displacement, position.z - displacement);
-		points.push(sphere8);
+		let bounds = 21 * 21;
+		let dist = radius / 10.0;
 
-		let mut sphere9 = Sphere::new(0.1f32, 0.1f32);
-		sphere9.position = Vec3::new(position.x + radius, position.y, position.z);
-		points.push(sphere9);
-		let mut sphere10 = Sphere::new(0.1f32, 0.1f32);
-		sphere10.position = Vec3::new(position.x - radius, position.y, position.z);
-		points.push(sphere10);
-		let mut sphere11 = Sphere::new(0.1f32, 0.1f32);
-		sphere11.position = Vec3::new(position.x, position.y + radius, position.z);
-		points.push(sphere11);
-		let mut sphere12 = Sphere::new(0.1f32, 0.1f32);
-		sphere12.position = Vec3::new(position.x, position.y - radius, position.z);
-		points.push(sphere12);
-		let mut sphere13 = Sphere::new(0.1f32, 0.1f32);
-		sphere13.position = Vec3::new(position.x, position.y, position.z + radius);
-		points.push(sphere13);
-		let mut sphere14 = Sphere::new(0.1f32, 0.1f32);
-		sphere14.position = Vec3::new(position.x, position.y, position.z - radius);
-		points.push(sphere14);
+		for x in (-10 .. 11) {
+			for y in (-10 .. 11) {
+				let sphere_index = points.len();
+				let mut new_sphere = Sphere::new(0.01, 0.01);
+				new_sphere.position.x = x as f32 * radius / 10.0;
+				new_sphere.position.y = y as f32 * radius / 10.0;
+				points.push(new_sphere);
 
-		let mut connections = HashMap::new();
-		let mut distances = HashMap::new();
-		for i in 0..14 {
-			let mut conn = Vec::new();
-			let mut data = Vec::new();
-			for j in 0..14 {
-				let dist = (points[i].position - points[j].position).norm();
-				if dist <= radius * 2.0f32 {
-					conn.push(j as i32);
-					data.push(dist);
-				} else {
-					data.push(-1.0f32);
+				let c_x = x + 1;
+				let c_y = y + 1;
+
+				let c_index_x = sphere_index + 21;
+				let c_index_y = sphere_index + 1;
+
+				if c_index_x < bounds {
+					connections.push(ConnectionData {
+						lhs: sphere_index,
+						rhs: c_index_x,
+						starting_distance: dist,
+					});
+				}
+
+				if c_index_y < bounds {
+					connections.push(ConnectionData {
+						lhs: sphere_index,
+						rhs: c_index_y,
+						starting_distance: dist,
+					});
 				}
 			}
-			connections.insert(points[i], conn);
-			distances.insert(points[i], data);
 		}
-
 		SoftBody {
 			points: points,
 			connections: connections,
-			distances: distances,
-		}
-
-	}
-
-	pub fn update(&self){
-		let mut closed = vec![];
-		let mut open = vec![self.points[0]];
-
-		while !open.is_empty() {
-			let mut curr = open.pop().unwrap();
-			for point in self.connections.get(&curr).unwrap().iter() {
-				if !closed.contains(self.points[point]) {
-					self.apply_spring_force(&mut curr, &mut self.points[*point], self.distances.get(&curr).unwrap()[*point]);
-					open.push(self.points[*point]);
-				}
-			}
-			closed.push(curr);
 		}
 	}
 
-	fn apply_spring_force(&self, lhs: &mut Sphere, rhs: &mut Sphere, distance: f32){
-		let mut force = rhs.position - lhs.position;
-		let curr_distance = force.norm();
-		force.normalize();
-		let modifier = 1.0f32 * curr_distance/distance;
-		lhs.position = lhs.position + force * modifier;
-		rhs.position = rhs.position - force * modifier;
+	pub fn update(& mut self) {
 
+		for conn in self.connections.iter() {
+			let (lhs, rhs) = self.points.get_pair_mut(conn.lhs, conn.rhs);
+			apply_spring_force(lhs, rhs, conn.starting_distance);
+		}
+
+		for sphere in self.points.iter_mut() {
+			sphere.update();	
+		}
 	}
+
+	pub fn get_points(&self) -> &Vec<Sphere> {
+		&self.points
+	}
+}
+fn apply_spring_force(lhs: &mut Sphere, rhs: &mut Sphere, distance: f32){
+	let mut force = rhs.position - lhs.position;
+	let curr_distance = force.norm();
+	force.normalize();
+	let modifier = 1.0f32 * curr_distance/distance;
+	lhs.position = lhs.position + force * modifier;
+	rhs.position = rhs.position - force * modifier;
+
+}
 	
 
 
-}

@@ -58,6 +58,8 @@ fn main() {
     sphere1.angular_velocity = Vec3::new(0.0f32, 0.0, 0.1);
     sphere1.mass = 1.0f32;
 
+    let sphere_buf = sphere1.into_buffer(&display, 10);
+
     let mut sphere2 = Sphere::new(1.0f32, 1.0f32);
     sphere2.position = Vec3::new(-2.0f32, 10.0, 21.0);
     sphere2.velocity = Vec3::new(0.0f32, -0.01, 0.0);
@@ -70,9 +72,6 @@ fn main() {
    
     let mut pair_list: Vec<_> = {
         let mut object_list = vec![sphere1, sphere2]; 
-        for i in 0..14 {
-            object_list.push(softsphere.points[i]);
-        }
         object_list.iter().map(|s| (s.clone(), s.into_buffer(&display, 10), Vec3::new(1.0, 0.0, 0.0))).collect()
     };
 
@@ -146,7 +145,7 @@ fn main() {
             *c = Vec3::new(1.0, 0.0, 0.0);
         }
         //softbody particle update
-        //softsphere.update();
+        softsphere.update();
         
         println!("Updated everything.");
         let color_update = {
@@ -196,7 +195,16 @@ fn main() {
 
             frame_buffer.draw(buf, &sphere_indices, &program, &uniforms, &params).unwrap();
         }
-    
+        
+        for ref s in softsphere.get_points().iter() {
+           let uniforms = uniform! {
+                vp_matrix: *(persp * s.get_homogeneous()).as_array(),
+                color: *Vec3::new(1.0, 1.0, 1.0).as_array(),
+            };
+
+            frame_buffer.draw(&sphere_buf, &sphere_indices, &program, &uniforms, &params).unwrap();
+        }
+
         frame_buffer.blit_color(&source_rect, & mut display.draw(), &dest_rect, glium::uniforms::MagnifySamplerFilter::Nearest);
 
     }
