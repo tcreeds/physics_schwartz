@@ -117,7 +117,7 @@ fn parse_value<I>(toks: & mut I) -> Expr where I: Iterator<Item=Token> + Clone {
 	match look_ahead.peek().expect("Unexpected end of stream.").clone() {
 		Token::Ident(name) => {
 			look_ahead.next();
-			match *look_ahead.peek().expect("Unexpected end of stream.") {
+			match *look_ahead.peek().unwrap_or(&Token::EoL) {
 				Token::OpenParen => {
 					parse_func(toks)
 				},
@@ -157,7 +157,7 @@ fn precedence(op: &String) -> u32 {
 		_ => 3,
 	}
 }
-fn parse_expr<I>(toks: & mut I) -> Expr where I: Iterator<Item=Token> + Clone {
+pub fn parse_expr<I>(toks: & mut I) -> Expr where I: Iterator<Item=Token> + Clone {
 	let mut ops: Vec<String> = vec![];	
 	let mut exprs: Vec<Expr> = vec![];
 	'shunt: loop {

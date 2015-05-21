@@ -1,5 +1,4 @@
 
-use parser;
 
 use std::collections::HashMap;
 
@@ -101,7 +100,7 @@ impl VM {
 fn compile_expr(target: Expr, registers: &HashMap<&str, usize>) -> Vec<Opcode> {
 	match target {
 		Expr::Number(val) => vec![Push(val)],
-		Expr::Variable(name) => vec![Load(registers[&name[..]])],
+		Expr::Variable(name) => { vec![Load(registers[&name[..]])]},
 		Expr::Call(func_name, args) => {
 			let mut ret = vec![];
 			for expr in args {

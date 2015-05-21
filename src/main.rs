@@ -8,9 +8,9 @@ extern crate itertools;
 mod sphere;
 mod vec_tools;
 mod plane;
-mod softbody;
-mod parser;
 mod vm;
+mod parser;
+mod softbody;
 
 use itertools::Itertools;
 use sphere::*;
@@ -27,20 +27,77 @@ fn main() {
     use glium::index;
     use glium::Surface;
 
-    /*let test = "d = 1 + 2 * 3 - 4 * (5 + 6)";
-    let mut toks = Tokenizer::new(&test[..]);
-    let line_test = parse_line(& mut toks);
-    let Line::Assign(name, expr) = line_test;
-    let mut registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
-    registers.insert("x", 0);
-    registers.insert("y", 1);
-    println!("{:?}", vm::VM::optimize(expr.clone()));
-    let vm_test = vm::VM::compile(vm::VM::optimize(expr), &registers); 
-    let data = vec![1.0, 1.0];
-    println!("{}: {:?}", name, vm_test.run(&data));
-    println!("{:?}", vm_test);*/
+    use std::io::BufRead;
 
-    //panic!(); 
+    let mut k = 0.01;
+    let mut g = -0.01;
+    let mut dampening = 0.03;
+    let mut restitution = 1.0;
+
+    let mut cr_registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+    cr_registers.insert("p", 0);
+    cr_registers.insert("other_p", 1);
+    cr_registers.insert("mass", 2);
+    let mut collision_response = vm::VM::compile(vm::VM::optimize(parse_expr(& mut Tokenizer::new("(0 - p + other_p) / mass\n"))), &cr_registers);
+
+    let mut sf_registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+    sf_registers.insert("x", 0);
+    sf_registers.insert("v", 1);
+    sf_registers.insert("dampening", 2);
+    sf_registers.insert("k", 3);
+    let mut spring_force = vm::VM::compile(vm::VM::optimize(parse_expr(& mut Tokenizer::new("0 - k * x - dampening * v\n"))), &sf_registers);
+    match std::fs::File::open("eq.txt") {
+        Ok(f) => {
+            let f = std::io::BufReader::new(f);
+            for line in f.lines() {
+                match line {
+                    Ok(line) => {
+                        if !line.starts_with("//") {
+                            let mut toks = Tokenizer::new(&line[..]);
+                            let Line::Assign(name, expr) = parse_line(& mut toks);
+                            match &name[..] {
+                                "spring_force" => {
+                                    spring_force = vm::VM::compile(vm::VM::optimize(expr), &sf_registers);
+                                },
+                                "collision_response" => {
+                                    collision_response = vm::VM::compile(vm::VM::optimize(expr), &cr_registers);
+                                },
+                                "k" => {
+                                    let registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+                                    let k_vm = vm::VM::compile(vm::VM::optimize(expr), &registers);
+                                    let data = vec![];
+                                    k = k_vm.run(&data) as f32;
+                                },
+                                "dampening" => {
+                                    let registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+                                    let d_vm = vm::VM::compile(vm::VM::optimize(expr), &registers);
+                                    let data = vec![];
+                                    dampening = d_vm.run(&data) as f32;
+                                },
+                                "g" => {
+                                    let registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+                                    let g_vm = vm::VM::compile(vm::VM::optimize(expr), &registers);
+                                    let data = vec![];
+                                    g = g_vm.run(&data) as f32;
+                                },
+                                "restitution" => {
+                                    let registers: std::collections::HashMap<_, _> = std::collections::HashMap::new();
+                                    let r_vm = vm::VM::compile(vm::VM::optimize(expr), &registers);
+                                    let data = vec![];
+                                    restitution = r_vm.run(&data) as f32;
+                                },
+                                _ => (),
+                            }
+                        }
+                    },
+                    _ => (),
+               } 
+            }
+        },
+        _ => ()
+    }
+    
+
 
     let display = glutin::WindowBuilder::new()
             .with_dimensions(1024, 768)
@@ -51,29 +108,34 @@ fn main() {
     let color_buffer = glium::texture::Texture2d::empty(&display, 1024, 768);
     let mut frame_buffer = glium::framebuffer::SimpleFrameBuffer::with_depth_buffer(&display, &color_buffer, &depth_buffer);
 
-
-    let mut sphere1 = Sphere::new(2.0f32, 1.0f32);
-    sphere1.position = Vec3::new(3.0f32, 5.4, 20.0);
-    sphere1.velocity = Vec3::new(0.0f32, 0.005, 0.0);
-    sphere1.angular_velocity = Vec3::new(0.0f32, 0.0, 0.1);
+    let mut sphere1 = Sphere::new(1.0f32, 1.0f32);
+    sphere1.position = Vec3::new(6.0f32, 5.0, 20.0);
+    sphere1.velocity = Vec3::new(0.0f32, 0.009, 0.005);
+    sphere1.angular_velocity = Vec3::new(0.0f32, 0.0, 0.0);
     sphere1.mass = 1.0f32;
 
     let sphere_buf = Sphere::into_buffer(&display, 10);
 
     let mut sphere2 = Sphere::new(1.0f32, 1.0f32);
-    sphere2.position = Vec3::new(-2.0f32, 10.0, 21.0);
-    sphere2.velocity = Vec3::new(0.03f32, -0.01, 0.0);
+    sphere2.position = Vec3::new(-6.0f32, 6.0, 20.0);
+    sphere2.velocity = Vec3::new(0.05f32, 0.005, 0.0);
     sphere2.angular_velocity = Vec3::new(0.0f32, 0.0, -0.0);
     sphere2.mass = 1.0f32;
 
-    let mut softsphere = SoftBody::new(Vec3::new(-5.0f32, 3.0, 21.0), 1.0f32);
-
-    let bottom_plane = Plane::new(Vec3::new(0.0f32, 0.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), 0.95f32);
-   
     let mut pair_list: Vec<_> = {
         let object_list = vec![sphere1, sphere2]; 
         object_list.iter().map(|s| (s.clone(), Vec3::new(1.0, 0.0, 0.0))).collect()
     };
+
+    let mut softsphere = SoftBody::new(Vec3::new(0.0f32, 2.0, 20.0), 2.0f32);
+
+    let bottom_plane = Plane::new(Vec3::new(0.0f32, -5.0, 0.0), Vec3::new(0.0f32, 1.0, 0.0), restitution);
+    let right_plane = Plane::new(Vec3::new(10.0f32, 0.0, 0.0), Vec3::new(-1.0f32, 0.0, 0.0), restitution);
+    let left_plane = Plane::new(Vec3::new(-10.0f32, 0.0, 0.0), Vec3::new(1.0f32, 0.0, 0.0), restitution);
+    let back_plane = Plane::new(Vec3::new(0.0f32, 0.0, 25.0), Vec3::new(0.0f32, 0.0, -1.0), restitution);
+    let front_plane = Plane::new(Vec3::new(0.0f32, 0.0, 10.0), Vec3::new(0.0f32, 0.0, 1.0), restitution);
+
+    let plane_list: Vec<Plane> = vec![bottom_plane, right_plane, left_plane, back_plane, front_plane];
 
     let sphere_indices = index::NoIndices(index::PrimitiveType::TrianglesList);
     
@@ -141,10 +203,12 @@ fn main() {
 
         for & mut (ref mut s, ref mut c) in pair_list.iter_mut() {
             s.update();
+            s.velocity.y += g;
+                
             *c = Vec3::new(1.0, 0.0, 0.0);
         }
         //softbody particle update
-        softsphere.update();
+        softsphere.update(g, k, dampening, &spring_force);
         
         let color_update = {
             let mut update_index_list = vec![];
@@ -163,7 +227,7 @@ fn main() {
             'out: for ref mut point in softsphere.get_points_mut().iter_mut() {
                 let test_result = hit_test(point, sph);
                 match test_result {
-                    Some(x) => {println!("{:?}", x); resolve_collision(point, sph, x); break 'out},
+                    Some(x) => resolve_collision(point, sph, x, &collision_response) ,
                     None => (),
                 }
             }
@@ -172,21 +236,21 @@ fn main() {
         for (li, ri, result) in color_update {
             let (& mut (ref mut lhs, ref mut c1), & mut (ref mut rhs, ref mut c2)) = pair_list.get_pair_mut(li, ri);
 
-            resolve_collision(lhs, rhs, result);
-            //let & mut (ref mut s1, _, ref mut c1) = pair_list.get_mut(li).unwrap();
+            resolve_collision(lhs, rhs, result, &collision_response);
             *c1 = Vec3::new(0.0, 1.0, 0.0);
-            //let & mut (ref mut s2, _, ref mut c2) = pair_list.get_mut(ri).unwrap();
             *c2 = Vec3::new(0.0, 1.0, 0.0);
-            //resolve_collision(s1, s2, result);
-            
         }
-        for & mut (ref mut s, _) in pair_list.iter_mut() {
-            if bottom_plane.check_collision(s) {
-                bottom_plane.bounce_sphere(s);
+        for plane in plane_list.iter(){
+            for & mut (ref mut s, _) in pair_list.iter_mut() {
+                if plane.check_collision(s) {
+                    plane.bounce_sphere(s);
+                }
             }
-            //gravity
-            s.velocity.y -= 0.001f32;
-            
+            for ref mut s in softsphere.get_points_mut().iter_mut() {
+                if plane.check_collision(s) {
+                    plane.bounce_sphere(s);
+                }
+            }
         }
 
         frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);  
@@ -210,79 +274,53 @@ fn main() {
         }
 
         frame_buffer.blit_color(&source_rect, & mut display.draw(), &dest_rect, glium::uniforms::MagnifySamplerFilter::Nearest);
-
     }
 }
 
 #[derive(Debug)]
 struct CollisionResult {
     normal: Vec3<f32>,
-    contact_point: Vec3<f32>,
-    relative_velocity: Vec3<f32>,
-    relative_perp_velocity: Vec3<f32>,
-    restitution: f32,
+    mtv: Vec3<f32>,
 }
 
 //doesn't deal with rotation yet
-fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult) -> () {
+fn resolve_collision(lhs: & mut Sphere, rhs: & mut Sphere, res: CollisionResult, mac: & vm::VM) -> () {
+    let total_radius = lhs.radius + rhs.radius;    
+    lhs.position = lhs.position + res.mtv * (lhs.radius / total_radius);
+    rhs.position = rhs.position - res.mtv * (rhs.radius / total_radius);
 
-    //mass of objects
-    let combined_mass = 1.0f32 / lhs.mass + 1.0f32 / rhs.mass;
-
-    //info to construct intertia tensors, inertia tensors
-    let coeff_lhs = 2.0f32 / 5.0 * lhs.mass * lhs.radius * lhs.radius;
-    let inertia_tensor_lhs = na::Mat3::new(coeff_lhs, 0.0, 0.0, 0.0, coeff_lhs, 0.0, 0.0, 0.0, coeff_lhs);
-    let coeff_rhs = 2.0f32 / 5.0 * rhs.mass * rhs.radius * rhs.radius;
-    let inertia_tensor_rhs = na::Mat3::new(coeff_rhs, 0.0, 0.0, 0.0, coeff_rhs, 0.0, 0.0, 0.0, coeff_rhs);
-
-    //inverse inertia tensors
-    let inv_tensor_lhs = na::inv(&inertia_tensor_lhs).unwrap();
-    let inv_tensor_rhs = na::inv(&inertia_tensor_rhs).unwrap();
-
-    //resolve penetration
-    lhs.position = lhs.position + res.normal * (lhs.radius / (lhs.position - res.contact_point).norm() - 1.0f32);
-    rhs.position = rhs.position - res.normal * (rhs.radius / (rhs.position - res.contact_point).norm() - 1.0f32);
-
-    //get radius from center of object to contact point
-    let radius_lhs = res.contact_point - lhs.position;
-    let radius_rhs = res.contact_point - rhs.position;
-
-    let numerator = -(1.0f32 + res.restitution) * na::dot(&res.relative_velocity, &res.normal);
-    let denominator = combined_mass + na::dot(&na::cross(&(inv_tensor_lhs * na::cross(&radius_lhs, &res.normal)), &radius_lhs), &res.normal) + na::dot(&na::cross(&(inv_tensor_rhs * na::cross(&radius_rhs, &res.normal)), &radius_rhs), &res.normal);
+    let p_lhs = na::dot(&lhs.velocity, &res.normal) * lhs.mass;
+    let p_rhs = na::dot(&rhs.velocity, &res.normal) * rhs.mass;
     
-    let impulse =  res.normal * (numerator / denominator); 
+    let data = vec![p_lhs as f64, p_rhs as f64, lhs.mass as f64];
+    let d_s_f_lhs = mac.run(&data) as f32;
 
-    let perp_lhs = res.relative_velocity.clone().normalize() * radius_lhs.norm();
-    let perp_rhs = res.relative_velocity.clone().normalize() * radius_rhs.norm();
+    let data = vec![p_rhs as f64, p_lhs as f64, rhs.mass as f64];
+    let d_s_f_rhs = mac.run(&data) as f32;
+/*    let p_f_lhs = -p_lhs + p_rhs;
+    let p_f_rhs = -p_rhs + p_lhs;
 
-    lhs.angular_velocity = lhs.angular_velocity - na::cross(&perp_lhs, &(impulse));
-    rhs.angular_velocity = rhs.angular_velocity - na::cross(&perp_rhs, &(impulse));
+    let d_s_f_lhs = p_f_lhs / lhs.mass;
+    let d_s_f_rhs = p_f_rhs / rhs.mass;*/
 
-    lhs.velocity = lhs.velocity + impulse;
-    rhs.velocity = rhs.velocity - impulse;
+    let d_v_f_lhs = res.normal * d_s_f_lhs;
+    let d_v_f_rhs = res.normal * d_s_f_rhs;
 
-    
-
+    lhs.velocity = lhs.velocity + d_v_f_lhs;
+    rhs.velocity = rhs.velocity + d_v_f_rhs;
 }
 
-fn hit_test(a: & Sphere, b: & Sphere) -> Option<CollisionResult> {
+fn hit_test(lhs: & Sphere, rhs: & Sphere) -> Option<CollisionResult> {
 
-    let dist = (a.position - b.position).norm();
-    if dist <= a.radius + b.radius {
-        //if na::dot(&a.velocity, &(b.position - a.position)) > 0.0f32 || na::dot(&b.velocity, &(a.position - b.position)) > 0.0f32 {
+    let dist = (lhs.position - rhs.position).norm();
+    if dist <= lhs.radius + rhs.radius {
         
-        let contact_normal = (a.position - b.position).normalize();
-        let point_of_contact = b.position + (a.position - b.position) / 2.0f32;
-        let rel_a = contact_normal * na::dot(&a.velocity, &contact_normal);
-        let rel_b = -contact_normal * na::dot(&b.velocity, &(-contact_normal));
-        let rel_vel = rel_b - rel_a;
+        let contact_normal = (lhs.position - rhs.position).normalize();
+        let mtv = contact_normal * (lhs.radius + rhs.radius - dist);
 
         let result = CollisionResult {
             normal: contact_normal,
-            contact_point: point_of_contact,
-            relative_velocity: rel_vel,
-            relative_perp_velocity: (b.velocity - rel_b) - (a.velocity - rel_a),
-            restitution: 0.5f32,
+            mtv: mtv,
         };
         Some(result)
 

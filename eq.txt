@@ -1,0 +1,15 @@
+// springs
+k = 0.01
+dampening = 0.02
+// v is the current relative velocity along the spring
+// x is the current distance difference between the neutral state and the current
+// no unary minus operator
+spring_force = 0 - k * x - dampening * v
+// everything
+g = -0.01
+// collisions
+restitution = 1
+// p is the objects momentum
+// other_p is the collided with objects momentum
+// mass is the objects mass
+line_of_action_velocity = (-p + other_p) / mass

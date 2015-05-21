@@ -7,6 +7,7 @@ extern crate std;
 extern crate nalgebra as na;
 
 use vec_tools::*;
+use vm::*;
 
 use na::*;
 use sphere::*;
@@ -30,7 +31,7 @@ impl SoftBody {
 		let mut points = Vec::new();
 		let mut connections = Vec::new();
 
-		let half_dim = 2i32;
+		let half_dim = 3i32;
 		let dim = 2 * half_dim + 1;
 
 		let bounds = dim * dim * dim;
@@ -40,11 +41,12 @@ impl SoftBody {
 			for x in (-half_dim .. half_dim + 1) {
 				for y in (-half_dim .. half_dim + 1) {
 					let sphere_index = points.len();
-					let mut new_sphere = Sphere::new(0.3, 1.0);
+					let mut new_sphere = Sphere::new(radius / 2.0 / half_dim as f32, 0.2);
 					new_sphere.position = position;
 					new_sphere.position.x += x as f32 * radius / half_dim as f32;
 					new_sphere.position.y += y as f32 * radius / half_dim as f32;
 					new_sphere.position.z += z as f32 * radius / half_dim as f32;
+					new_sphere.fixed = y == half_dim;
 					points.push(new_sphere);
 
 					let c_index_y = sphere_index as i32 + 1;
@@ -78,22 +80,21 @@ impl SoftBody {
 				}
 			}
 		}
-		//points[0].velocity.x = -0.2f32;
-		//points[0].velocity.y = -0.2f32;
 		SoftBody {
 			points: points,
 			connections: connections,
 		}
 	}
 
-	pub fn update(& mut self) {
+	pub fn update(& mut self, g: f32, k: f32, damp: f32, mac: & VM) {
 		for conn in self.connections.iter() {
 			let (lhs, rhs) = self.points.get_pair_mut(conn.lhs, conn.rhs);
-			apply_spring_force(lhs, rhs, conn.starting_distance);
+			apply_spring_force(lhs, rhs, conn.starting_distance, k, damp, mac);
+			
 		}
 		for sphere in self.points.iter_mut() {
 			sphere.update();	
-			sphere.velocity = sphere.velocity * 0.99;
+			sphere.velocity.y += g;
 		}
 	}
 
@@ -105,20 +106,25 @@ impl SoftBody {
 		& mut self.points
 	}
 }
-fn apply_spring_force(lhs: &mut Sphere, rhs: &mut Sphere, distance: f32){
+fn apply_spring_force(lhs: &mut Sphere, rhs: &mut Sphere, distance: f32, k: f32, damp: f32, mac: & VM){
 	
 	let mut force = rhs.position - lhs.position;
 	let curr_distance = force.norm();
+	let rel_velocity = rhs.velocity - lhs.velocity;
 	force = force.normalize();
 	let mut modifier = curr_distance - distance;
-	//println!("{:?}", modifier);
 	{
-		modifier = modifier * 0.1f32;
-		lhs.force = lhs.force + force * modifier;
-		rhs.force = rhs.force - force * modifier;
+		// x v d k
+		let data = vec![force.x as f64 * modifier as f64, rel_velocity.x as f64, damp as f64, k as f64];
+		force.x = mac.run(&data) as f32;
+		let data = vec![force.y as f64 * modifier as f64, rel_velocity.y as f64, damp as f64, k as f64];
+		force.y = mac.run(&data) as f32;
+		let data = vec![force.z as f64 * modifier as f64, rel_velocity.z as f64, damp as f64, k as f64];
+		force.z = mac.run(&data) as f32;
+
+
+		lhs.force = lhs.force - force;
+		rhs.force = rhs.force + force;
 	}
 
 }
-	
-
-

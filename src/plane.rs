@@ -70,23 +70,10 @@ impl Plane {
 	}
 
 	pub fn bounce_sphere(&self, sphere: &mut Sphere){
-
 		sphere.velocity = self.reflect(sphere.velocity) * self.restitution; 
-		let tensor_value = 2.0f32 / 5.0f32 * sphere.mass * sphere.radius * sphere.radius;
-		let inertia_tensor = na::Mat3::new(tensor_value, 0.0, 0.0, 0.0, tensor_value, 0.0, 0.0, 0.0, tensor_value);
-		let inv_tensor = na::inv(&inertia_tensor).unwrap();
-		let vradius = -self.normal * sphere.radius;
-		let numerator = -(1.0f32 + self.restitution) * na::dot(&sphere.velocity, &self.normal);
-		let denominator = 1.0f32 / sphere.mass + na::dot(&na::cross(&(inv_tensor * na::cross(&vradius, &self.normal)), &vradius), &self.normal);
-		let impulse =  self.normal * (numerator / denominator); 
-
-		let perp = sphere.velocity.clone().normalize() * sphere.radius;
-
-		sphere.angular_velocity = sphere.angular_velocity - na::cross(&perp, &impulse);
-
 	}
 
-	fn reflect(&self, vector: Vec3<f32>) -> Vec3<f32> {
+	pub fn reflect(&self, vector: Vec3<f32>) -> Vec3<f32> {
 		vector - self.normal * 2.0f32 * na::dot(&vector, &self.normal) 
 	}
 }
