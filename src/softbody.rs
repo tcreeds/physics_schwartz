@@ -36,7 +36,7 @@ impl SoftBody {
 		for x in (-10 .. 11) {
 			for y in (-10 .. 11) {
 				let sphere_index = points.len();
-				let mut new_sphere = Sphere::new(0.01, 0.01);
+				let mut new_sphere = Sphere::new(0.1, 0.01);
 				new_sphere.position = position;
 				new_sphere.position.x = x as f32 * radius / 10.0;
 				new_sphere.position.y = y as f32 * radius / 10.0;
